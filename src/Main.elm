@@ -17,8 +17,8 @@ module Main exposing (main)
 
 import Angle exposing (Angle)
 import Array
-import Block3d
 import Browser
+import Browser.Dom exposing (Viewport, getViewport)
 import Browser.Events
 import Camera3d exposing (Camera3d, viewpoint)
 import Color exposing (Color, black)
@@ -37,8 +37,11 @@ import Scene3d
 import Scene3d.Light as Light exposing (Light)
 import Scene3d.Material as Material exposing (Material)
 import Scene3d.Mesh as Mesh exposing (Mesh)
+import Svg
+import Svg.Attributes as SA
 import Task
 import TriangularMesh exposing (TriangularMesh)
+import TypingApp exposing (Msg(..))
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 
@@ -47,12 +50,29 @@ import WebGL.Texture exposing (Texture)
 -- INIT
 
 
+collageWidth =
+    198
+
+
+collageHeight =
+    128
+
+
 type WorldCoordinates
     = WorldCoordinates
 
 
+type alias Window =
+    { cw : Float
+    , ch : Float
+    , sw : Int
+    , sh : Int
+    }
+
+
 type alias Model =
-    { elapsedTime : Duration
+    { window : Window
+    , elapsedTime : Duration
     , azimuth : Angle
     , elevation : Angle
     , isOrbiting : Bool
@@ -115,7 +135,8 @@ init () =
                     , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) }
                     ]
     in
-    ( { elapsedTime = Quantity.zero
+    ( { window = { cw = collageWidth, ch = collageHeight, sw = 0, sh = 0 }
+      , elapsedTime = Quantity.zero
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
       , isOrbiting = False
@@ -125,7 +146,8 @@ init () =
       , cltSideTexture = Material.constant Color.black
       }
     , Cmd.batch
-        [ Task.attempt (GotTexture "top") (Material.loadWith Material.trilinearFiltering cltTopTextureURL)
+        [ getViewportSize
+        , Task.attempt (GotTexture "top") (Material.loadWith Material.trilinearFiltering cltTopTextureURL)
         , Task.attempt (GotTexture "side") (Material.loadWith Material.trilinearFiltering cltSideTextureURL)
         ]
     )
@@ -147,10 +169,12 @@ cltSideTextureURL =
 
 type Msg
     = Tick Duration
+    | WindowResize (Maybe ( Int, Int ))
     | MouseDown
     | MouseUp
     | MouseMove (Quantity Float Pixels) (Quantity Float Pixels)
     | GotTexture String (Result WebGL.Texture.Error (Material.Texture Color))
+    | NoOp
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -158,6 +182,21 @@ update msg model =
     case msg of
         Tick duration ->
             ( { model | elapsedTime = Quantity.plus duration model.elapsedTime }, Cmd.none )
+
+        WindowResize mWH ->
+            case mWH of
+                Just ( w, h ) ->
+                    ( { model
+                        | window = didResize model.window w h
+                      }
+                    , Cmd.none
+                    )
+
+                -- need to get viewport size after the app starts
+                Nothing ->
+                    ( model
+                    , getViewportSize
+                    )
 
         MouseDown ->
             ( { model | isOrbiting = True }, Cmd.none )
@@ -209,6 +248,9 @@ update msg model =
             else
                 ( { model | cltSideTexture = Material.constant Color.blue }, Cmd.none )
 
+        NoOp ->
+            ( model, Cmd.none )
+
 
 decodeMouseMove : Decoder Msg
 decodeMouseMove =
@@ -243,7 +285,27 @@ subscriptions model =
 -- view
 
 
-view : Model -> Html Msg
+didResize : Window -> Int -> Int -> Window
+didResize window sw sh =
+    { window | sw = round <| toFloat sw * 0.99, sh = round <| toFloat sh * 0.95 }
+
+
+getViewportSize : Cmd Msg
+getViewportSize =
+    Task.attempt
+        (\rvp ->
+            case rvp of
+                Ok vp ->
+                    WindowResize <|
+                        Just ( floor <| vp.viewport.width, floor <| vp.viewport.height )
+
+                Err _ ->
+                    NoOp
+        )
+        getViewport
+
+
+view : Model -> Browser.Document Msg
 view model =
     let
         -- Create a fixed directional light
@@ -278,24 +340,28 @@ view model =
                 , verticalFieldOfView = Angle.degrees 30
                 }
     in
-    div []
-        [ h1 [ style "margin" "0px", style "text-align" "center" ] [ text "CLTCreator" ]
-        , Scene3d.custom
-            { camera = camera
-            , clipDepth = Length.centimeters 0.5
-            , dimensions = ( Pixels.int 1280, Pixels.int 720 )
-            , antialiasing = Scene3d.multisampling
-            , lights = Scene3d.twoLights sunlight overheadLighting
-            , exposure = Scene3d.exposureValue 12
-            , toneMapping = Scene3d.noToneMapping
-            , whiteBalance = Light.daylight
-            , background = Scene3d.backgroundColor Color.grey
-            , entities =
-                [ Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
-                , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
-                ]
-            }
+    { title = "CLTCreator"
+    , body =
+        [ div []
+            [ h1 [ style "margin" "0px", style "text-align" "center" ] [ text "CLTCreator" ]
+            , Scene3d.custom
+                { camera = camera
+                , clipDepth = Length.centimeters 0.5
+                , dimensions = ( Pixels.int model.window.sw, Pixels.int model.window.sh )
+                , antialiasing = Scene3d.multisampling
+                , lights = Scene3d.twoLights sunlight overheadLighting
+                , exposure = Scene3d.exposureValue 12
+                , toneMapping = Scene3d.noToneMapping
+                , whiteBalance = Light.daylight
+                , background = Scene3d.backgroundColor Color.grey
+                , entities =
+                    [ Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
+                    , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
+                    ]
+                }
+            ]
         ]
+    }
 
 
 
@@ -304,7 +370,7 @@ view model =
 
 main : Program () Model Msg
 main =
-    Browser.element
+    Browser.document
         { init = init
         , update = update
         , view = view
