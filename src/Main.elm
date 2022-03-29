@@ -8,10 +8,11 @@ module Main exposing (main)
    - Runs with elm-3d-scene
 
    Todo:
-       1. Generate a 3D environment with a 3D clt plank.
-       2. Add a background.
-       3. Add orbiting camera on mouse click and drag.
+       1. Generate a 3D environment with a 3D clt plank. (Done)
+       2. Add a background. (Done)
+       3. Add orbiting camera on mouse click and drag. (Done)
        4. Look into 2D widgets for controls(sliders) and information.
+       5. Add dynamic resizing of the scene. (Done)
 -}
 -- IMPORTS
 
@@ -48,6 +49,7 @@ import WebGL.Texture exposing (Texture)
 
 
 -- INIT
+-- Collage dimensions will be used to generate various overlays later using Scalable vector graphics.
 
 
 collageWidth =
@@ -58,8 +60,16 @@ collageHeight =
     128
 
 
+
+-- Type to handle world coordinates in the 3d scene.
+
+
 type WorldCoordinates
     = WorldCoordinates
+
+
+
+-- Window is a type alias for a custom record used to hold values for Collage and Scene Dimensions.
 
 
 type alias Window =
@@ -68,6 +78,10 @@ type alias Window =
     , sw : Int
     , sh : Int
     }
+
+
+
+-- Main Model (State variable) type which is used to store current state values for the application.
 
 
 type alias Model =
@@ -83,10 +97,18 @@ type alias Model =
     }
 
 
+
+-- Initialization of the model state variable as well as the app on initial load.
+-- The initialization contains the mesh information for the CLT slab which holds the vector adn uv coordinates in Point3d centimeters and float respectively.
+
+
 init : () -> ( Model, Cmd Msg )
 init () =
     let
-        -- Combined mesh with upper + lower rectangular meshes and a Strip mesh for the sides (with variable widths and lengths)
+        -- Combined mesh with upper + lower rectangular meshes and a Strip mesh for the sides.
+        -- The mesh is currently set to default clt plank dimensions to ensure uniformity.
+        -- Variable Plank Mesh function will be added as a feature after the base functionality.
+        -- The combined mesh is made up of two triangular meshes of indexed and strip respectively.
         mesh =
             Mesh.texturedTriangles <|
                 TriangularMesh.combine [ upperMesh, lowerMesh ]
@@ -135,6 +157,17 @@ init () =
                     , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) }
                     ]
     in
+    -- In the init functio nwe store the previously created mesh and other values since creation of a mesh is an expensive operation
+    --   and changing the mesh frequently causes optimization issues.
+    -- This is why we store the mesh in the state change variable instead of calculating and remaking the mesh at every instance.
+    -- We also store the texture values for the created meshes to apply them later in the view function
+    -- elapsedTime is a data type used to handle time w.r.t Animation and frames.
+    -- azimuth and elevation hold the values required to position the camera. These are dynamically changed while the user drags on the screen.
+    -- isOrbiting is a boolean which holds true if the user wants to drag the screen else it is false.
+    -- cltMeshx and clt_Texture hold mesh and texture values as discussed above.
+    -- Coming to the commands, we are issuing 3 separate commands on initialisation.
+    -- getViewportSize is used to get the current viewport dimensions of the browser from javascript.
+    -- The other two commands are used to make a request to the github repositories which hold the textures.
     ( { window = { cw = collageWidth, ch = collageHeight, sw = 0, sh = 0 }
       , elapsedTime = Quantity.zero
       , azimuth = Angle.degrees 45
@@ -147,10 +180,16 @@ init () =
       }
     , Cmd.batch
         [ getViewportSize
+
+        -- Important to note that we render the below textures using trilinearFiltering texture/ image filtering.
         , Task.attempt (GotTexture "top") (Material.loadWith Material.trilinearFiltering cltTopTextureURL)
         , Task.attempt (GotTexture "side") (Material.loadWith Material.trilinearFiltering cltSideTextureURL)
         ]
     )
+
+
+
+-- URLs for the CLT textures
 
 
 cltTopTextureURL : String
@@ -164,7 +203,15 @@ cltSideTextureURL =
 
 
 
--- Update
+-- UPDATE
+-- This datatype acts like a messgae/action handler for changing state (or updating) the current state of our app.
+-- The various things it can represent is separated with a "|" (pipe) symbol.
+-- We have state changes for :
+--  Tick - time based animation frames
+--  WindowResize - To update the values of viewport size in the model.
+--  Mouse Events - Mouse down and Up for controling camera and Mouse move to get the location of drag points.
+--  GotTexture - For updating the texure in the model after retrieval.
+--  NoOp - Like a default state change where model/ state does not change.
 
 
 type Msg
@@ -177,12 +224,19 @@ type Msg
     | NoOp
 
 
+
+-- The actual update function which has case by case for each of the state change initiators from "Msg" datatype above.
+-- THis function dicatates WHAT to change, the actual action in the state change, and HOW to change it.
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        -- Tick is used to state change for every animation frame.
         Tick duration ->
             ( { model | elapsedTime = Quantity.plus duration model.elapsedTime }, Cmd.none )
 
+        -- Window Resize is setting the viewport dimensions in the model when there is a successful retrieval from Javascrip and elm runtime.
         WindowResize mWH ->
             case mWH of
                 Just ( w, h ) ->
@@ -192,18 +246,19 @@ update msg model =
                     , Cmd.none
                     )
 
-                -- need to get viewport size after the app starts
                 Nothing ->
                     ( model
                     , getViewportSize
                     )
 
+        -- Mouse events which are used to set the boolean value for isOrbiting in the model based on whetehr the user is clicking and dragging.
         MouseDown ->
             ( { model | isOrbiting = True }, Cmd.none )
 
         MouseUp ->
             ( { model | isOrbiting = False }, Cmd.none )
 
+        -- If the user isOrbiting then we get and set the new azimuth and elevation values into the model for renderign in the view.
         MouseMove dx dy ->
             if model.isOrbiting then
                 let
@@ -232,6 +287,7 @@ update msg model =
             else
                 ( model, Cmd.none )
 
+        -- Setting the retrieved texture values into the model.
         GotTexture textureType (Ok texture) ->
             if textureType == "top" then
                 -- Successfully loaded the texture
@@ -242,14 +298,18 @@ update msg model =
 
         GotTexture textureType (Err error) ->
             if textureType == "top" then
-                -- Network error, bad image dimensions etc.
                 ( { model | cltTopTexture = Material.constant Color.blue }, Cmd.none )
 
             else
                 ( { model | cltSideTexture = Material.constant Color.blue }, Cmd.none )
 
+        -- Default catch to make no change to model/state.
         NoOp ->
             ( model, Cmd.none )
+
+
+
+-- A decoder written to extract the current mouse coordinates and return them in pixels to initiate a state change
 
 
 decodeMouseMove : Decoder Msg
@@ -257,6 +317,13 @@ decodeMouseMove =
     Decode.map2 MouseMove
         (Decode.field "movementX" (Decode.map Pixels.float Decode.float))
         (Decode.field "movementY" (Decode.map Pixels.float Decode.float))
+
+
+
+-- Subscriptions are like commands but these are periodically issued functions to the elm runtime which is used to interact
+-- with the outside environment (Javascript or other browser servivces)
+-- Here we issue multiple subsciptions based on the isOrbiting boolean in model.
+-- The mouse event reading as well as animation frame reading are done here.
 
 
 subscriptions : Model -> Sub Msg
@@ -274,7 +341,7 @@ subscriptions model =
 
     else
         -- If we're not currently orbiting, just listen for mouse down events
-        -- to start orbiting
+        -- to start orbiting and animation frames
         Sub.batch
             [ Browser.Events.onMouseDown (Decode.succeed MouseDown)
             , Browser.Events.onAnimationFrameDelta (Duration.milliseconds >> Tick)
@@ -283,11 +350,16 @@ subscriptions model =
 
 
 -- view
+-- This function is used to allocate the new viewport dimensions onto the Window schema part of the model.
 
 
 didResize : Window -> Int -> Int -> Window
 didResize window sw sh =
     { window | sw = round <| toFloat sw * 0.99, sh = round <| toFloat sh * 0.95 }
+
+
+
+-- This function is a command issued in the init function to get the viewport sizes by talking to JavaScript. THen they call the state change Message called WindowResize.
 
 
 getViewportSize : Cmd Msg
@@ -305,8 +377,14 @@ getViewportSize =
         getViewport
 
 
+
+-- This is the main view module responsible for displaying the elements on the HTML browser with the help of JavaScript.
+-- Here it is slightly modified to output a Browser.Document (which includes Html) type instead of Html type because out elm app type is a Browser.document.
+
+
 view : Model -> Browser.Document Msg
 view model =
+    -- Inside here we create different elements required for our 3D graphics environment including lights, cameras, etc.
     let
         -- Create a fixed directional light
         sunlight =
@@ -325,7 +403,6 @@ view model =
                 , intensity = Illuminance.lux 10000
                 }
 
-        -- Function to generate a CLT Plank with variable width, length and height
         viewpoint =
             Viewpoint3d.orbitZ
                 { focalPoint = Point3d.meters 0 0 0
@@ -334,21 +411,27 @@ view model =
                 , distance = Length.meters 0.5
                 }
 
+        -- Create a camera with the viewpoint location as mentioned before.
+        -- The azimuth and elevation are dynamically taken from the model. These values change when the user drags on the screen.
         camera =
             Camera3d.perspective
                 { viewpoint = viewpoint
                 , verticalFieldOfView = Angle.degrees 30
                 }
     in
+    -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
     , body =
         [ div []
             [ h1 [ style "margin" "0px", style "text-align" "center" ] [ text "CLTCreator" ]
+
+            -- This part includes a Scene3d.custom which is a datatype used to render 3D scenes from the elm-3d-scene library.
+            -- we input the values for creating the 3D environment with the values and entities that we have created before.
             , Scene3d.custom
                 { camera = camera
                 , clipDepth = Length.centimeters 0.5
                 , dimensions = ( Pixels.int model.window.sw, Pixels.int model.window.sh )
-                , antialiasing = Scene3d.multisampling
+                , antialiasing = Scene3d.multisampling -- Here we use multisampling antialiasing
                 , lights = Scene3d.twoLights sunlight overheadLighting
                 , exposure = Scene3d.exposureValue 12
                 , toneMapping = Scene3d.noToneMapping
