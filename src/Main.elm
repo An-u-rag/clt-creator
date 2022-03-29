@@ -448,7 +448,9 @@ view model =
 
 
 
--- Main
+-- MAIN
+-- This is a core part of the architecture which is the entry point for the application. It tells the compiler,
+-- run time and JavaScript about various points in the architecture and what the functions actually represent.
 
 
 main : Program () Model Msg
