@@ -11,5 +11,8 @@ Commit 2:
 - Changed Browser object type from Element -> Document.
 - Added parameters to control overall scene width and height with % of pixels.
 
-Commit 3: (More like a partial commit)
+Commit 3: 
 - Added legible comments throughout the code. 
+- Added reference X, Y and Z axes - cylinders.
+- Realistic CLT plank dimensions
+- Fixed the resolution issue for the plank.

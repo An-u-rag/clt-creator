@@ -18,11 +18,14 @@ module Main exposing (main)
 
 import Angle exposing (Angle)
 import Array
+import Axis3d
+import Block3d exposing (axes)
 import Browser
 import Browser.Dom exposing (Viewport, getViewport)
 import Browser.Events
 import Camera3d exposing (Camera3d, viewpoint)
 import Color exposing (Color, black)
+import Cylinder3d exposing (Cylinder3d)
 import Direction3d
 import Duration exposing (Duration)
 import Html exposing (..)
@@ -116,11 +119,11 @@ init () =
         upperMesh =
             TriangularMesh.indexed
                 (Array.fromList
-                    [ { position = Point3d.centimeters 0 0 1, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.centimeters 4 0 1, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.centimeters 4 3 1, uv = ( 1.0, 1.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 3 1, uv = ( 0.0, 1.0 ) } -- 3
-                    , { position = Point3d.centimeters 0 0 1, uv = ( 0.0, 0.0 ) }
+                    [ { position = Point3d.meters 0 0 0.4, uv = ( 0.0, 0.0 ) } -- 0
+                    , { position = Point3d.meters 5 0 0.4, uv = ( 1.0, 0.0 ) } -- 1
+                    , { position = Point3d.meters 5 3 0.4, uv = ( 1.0, 1.0 ) } -- 2
+                    , { position = Point3d.meters 0 3 0.4, uv = ( 0.0, 1.0 ) } -- 3
+                    , { position = Point3d.meters 0 0 0.4, uv = ( 0.0, 0.0 ) }
                     ]
                 )
                 [ ( 0, 1, 2 )
@@ -130,11 +133,11 @@ init () =
         lowerMesh =
             TriangularMesh.indexed
                 (Array.fromList
-                    [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.centimeters 4 0 0, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.centimeters 4 3 0, uv = ( 1.0, 1.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 3 0, uv = ( 0.0, 1.0 ) } -- 3
-                    , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) }
+                    [ { position = Point3d.meters 0 0 0, uv = ( 0.0, 0.0 ) } -- 0
+                    , { position = Point3d.meters 5 0 0, uv = ( 1.0, 0.0 ) } -- 1
+                    , { position = Point3d.meters 5 3 0, uv = ( 1.0, 1.0 ) } -- 2
+                    , { position = Point3d.meters 0 3 0, uv = ( 0.0, 1.0 ) } -- 3
+                    , { position = Point3d.meters 0 0 0, uv = ( 0.0, 0.0 ) }
                     ]
                 )
                 [ ( 0, 1, 2 )
@@ -144,17 +147,17 @@ init () =
         rawStripMesh =
             Mesh.texturedTriangles <|
                 TriangularMesh.strip
-                    [ { position = Point3d.centimeters 0 0 1, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.centimeters 4 0 1, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.centimeters 4 3 1, uv = ( 0.0, 0.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 3 1, uv = ( 1.0, 0.0 ) } -- 3
-                    , { position = Point3d.centimeters 0 0 1, uv = ( 0.0, 0.0 ) }
+                    [ { position = Point3d.meters 0 0 0.4, uv = ( 0.0, 0.0 ) } -- 0
+                    , { position = Point3d.meters 5 0 0.4, uv = ( 1.0, 0.0 ) } -- 1
+                    , { position = Point3d.meters 5 3 0.4, uv = ( 0.0, 0.0 ) } -- 2
+                    , { position = Point3d.meters 0 3 0.4, uv = ( 1.0, 0.0 ) } -- 3
+                    , { position = Point3d.meters 0 0 0.4, uv = ( 0.0, 0.0 ) }
                     ]
-                    [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) } -- 0
-                    , { position = Point3d.centimeters 4 0 0, uv = ( 1.0, 1.0 ) } -- 1
-                    , { position = Point3d.centimeters 4 3 0, uv = ( 0.0, 1.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 3 0, uv = ( 1.0, 1.0 ) } -- 3
-                    , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) }
+                    [ { position = Point3d.meters 0 0 0, uv = ( 0.0, 1.0 ) } -- 0
+                    , { position = Point3d.meters 5 0 0, uv = ( 1.0, 1.0 ) } -- 1
+                    , { position = Point3d.meters 5 3 0, uv = ( 0.0, 1.0 ) } -- 2
+                    , { position = Point3d.meters 0 3 0, uv = ( 1.0, 1.0 ) } -- 3
+                    , { position = Point3d.meters 0 0 0, uv = ( 0.0, 1.0 ) }
                     ]
     in
     -- In the init functio nwe store the previously created mesh and other values since creation of a mesh is an expensive operation
@@ -408,7 +411,7 @@ view model =
                 { focalPoint = Point3d.meters 0 0 0
                 , azimuth = model.azimuth
                 , elevation = model.elevation
-                , distance = Length.meters 0.5
+                , distance = Length.meters 20
                 }
 
         -- Create a camera with the viewpoint location as mentioned before.
@@ -418,6 +421,49 @@ view model =
                 { viewpoint = viewpoint
                 , verticalFieldOfView = Angle.degrees 30
                 }
+
+        -- Create 3D axes for representing the direction of X, Y and Z
+        xAxisMaterial =
+            Material.nonmetal
+                { baseColor = Color.red
+                , roughness = 0.1
+                }
+
+        yAxisMaterial =
+            Material.nonmetal
+                { baseColor = Color.blue
+                , roughness = 0.1
+                }
+
+        zAxisMaterial =
+            Material.nonmetal
+                { baseColor = Color.green
+                , roughness = 0.1
+                }
+
+        xAxisCylinder =
+            Scene3d.cylinder xAxisMaterial <|
+                Cylinder3d.along Axis3d.x
+                    { start = Length.centimeters 0
+                    , end = Length.centimeters 1000
+                    , radius = Length.centimeters 1
+                    }
+
+        yAxisCylinder =
+            Scene3d.cylinder yAxisMaterial <|
+                Cylinder3d.along Axis3d.y
+                    { start = Length.centimeters 0
+                    , end = Length.centimeters 1000
+                    , radius = Length.centimeters 1
+                    }
+
+        zAxisCylinder =
+            Scene3d.cylinder zAxisMaterial <|
+                Cylinder3d.along Axis3d.z
+                    { start = Length.centimeters 0
+                    , end = Length.centimeters 1000
+                    , radius = Length.centimeters 1
+                    }
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
@@ -438,7 +484,10 @@ view model =
                 , whiteBalance = Light.daylight
                 , background = Scene3d.backgroundColor Color.grey
                 , entities =
-                    [ Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
+                    [ xAxisCylinder
+                    , yAxisCylinder
+                    , zAxisCylinder
+                    , Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
                     , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
                     ]
                 }
