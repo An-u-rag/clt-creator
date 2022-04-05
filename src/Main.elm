@@ -45,7 +45,6 @@ import Svg
 import Svg.Attributes as SA
 import Task
 import TriangularMesh exposing (TriangularMesh)
-import TypingApp exposing (Msg(..))
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 
