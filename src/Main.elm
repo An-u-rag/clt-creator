@@ -24,7 +24,7 @@ import Browser
 import Browser.Dom exposing (Viewport, getViewport)
 import Browser.Events
 import Camera3d exposing (Camera3d, viewpoint)
-import Color exposing (Color, black)
+import Color exposing (Color, black, blue, lightOrange)
 import Cylinder3d exposing (Cylinder3d)
 import Direction3d
 import Duration exposing (Duration)
@@ -97,6 +97,7 @@ type alias Model =
     , cltMesh2 : Mesh.Unlit WorldCoordinates
     , cltTopTexture : Material.Texture Color
     , cltSideTexture : Material.Texture Color
+    , gridTexture : Material.Texture Color
     }
 
 
@@ -180,19 +181,21 @@ init () =
       , cltMesh2 = rawStripMesh
       , cltTopTexture = Material.constant Color.black
       , cltSideTexture = Material.constant Color.black
+      , gridTexture = Material.constant Color.black
       }
     , Cmd.batch
         [ getViewportSize
 
         -- Important to note that we render the below textures using trilinearFiltering texture/ image filtering.
-        , Task.attempt (GotTexture "top") (Material.loadWith Material.trilinearFiltering cltTopTextureURL)
-        , Task.attempt (GotTexture "side") (Material.loadWith Material.trilinearFiltering cltSideTextureURL)
+        , Task.attempt (GotTexture "top") (Material.loadWith Material.bilinearFiltering cltTopTextureURL)
+        , Task.attempt (GotTexture "side") (Material.loadWith Material.bilinearFiltering cltSideTextureURL)
+        , Task.attempt (GotTexture "grid") (Material.loadWith Material.trilinearFiltering gridTextureURL)
         ]
     )
 
 
 
--- URLs for the CLT textures
+-- URLs for the CLT textures and Grid
 
 
 cltTopTextureURL : String
@@ -203,6 +206,11 @@ cltTopTextureURL =
 cltSideTextureURL : String
 cltSideTextureURL =
     "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/clt-textures/crosssection-2.png"
+
+
+gridTextureURL : String
+gridTextureURL =
+    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/GraphPaperTextures/gridx64-1024.png"
 
 
 
@@ -296,12 +304,18 @@ update msg model =
                 -- Successfully loaded the texture
                 ( { model | cltTopTexture = texture }, Cmd.none )
 
+            else if textureType == "grid" then
+                ( { model | gridTexture = texture }, Cmd.none )
+
             else
                 ( { model | cltSideTexture = texture }, Cmd.none )
 
         GotTexture textureType (Err error) ->
             if textureType == "top" then
                 ( { model | cltTopTexture = Material.constant Color.blue }, Cmd.none )
+
+            else if textureType == "grid" then
+                ( { model | gridTexture = Material.constant Color.blue }, Cmd.none )
 
             else
                 ( { model | cltSideTexture = Material.constant Color.blue }, Cmd.none )
@@ -431,39 +445,55 @@ view model =
 
         yAxisMaterial =
             Material.nonmetal
-                { baseColor = Color.blue
+                { baseColor = Color.green
                 , roughness = 0.1
                 }
 
         zAxisMaterial =
             Material.nonmetal
-                { baseColor = Color.green
+                { baseColor = Color.blue
                 , roughness = 0.1
                 }
 
         xAxisCylinder =
             Scene3d.cylinder xAxisMaterial <|
                 Cylinder3d.along Axis3d.x
-                    { start = Length.centimeters 0
-                    , end = Length.centimeters 1000
-                    , radius = Length.centimeters 1
+                    { start = Length.meters 0
+                    , end = Length.meters 32
+                    , radius = Length.meters 0.05
                     }
 
         yAxisCylinder =
             Scene3d.cylinder yAxisMaterial <|
                 Cylinder3d.along Axis3d.y
-                    { start = Length.centimeters 0
-                    , end = Length.centimeters 1000
-                    , radius = Length.centimeters 1
+                    { start = Length.meters 0
+                    , end = Length.meters 32
+                    , radius = Length.meters 0.05
                     }
 
         zAxisCylinder =
             Scene3d.cylinder zAxisMaterial <|
                 Cylinder3d.along Axis3d.z
-                    { start = Length.centimeters 0
-                    , end = Length.centimeters 1000
-                    , radius = Length.centimeters 1
+                    { start = Length.meters 0
+                    , end = Length.meters 32
+                    , radius = Length.meters 0.05
                     }
+
+        -- Grouping the 3 axis into one entity for readability
+        axisReference =
+            Scene3d.group
+                [ xAxisCylinder
+                , yAxisCylinder
+                , zAxisCylinder
+                ]
+
+        -- 2D XY plane Grid
+        xyGrid =
+            Scene3d.quad (Material.texturedColor model.gridTexture)
+                (Point3d.meters -32 32 -0.25)
+                (Point3d.meters 32 32 -0.25)
+                (Point3d.meters 32 -32 -0.25)
+                (Point3d.meters -32 -32 -0.25)
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
@@ -484,9 +514,8 @@ view model =
                 , whiteBalance = Light.daylight
                 , background = Scene3d.backgroundColor Color.grey
                 , entities =
-                    [ xAxisCylinder
-                    , yAxisCylinder
-                    , zAxisCylinder
+                    [ axisReference
+                    , xyGrid
                     , Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
                     , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
                     ]
