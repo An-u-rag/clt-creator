@@ -119,11 +119,11 @@ init () =
         upperMesh =
             TriangularMesh.indexed
                 (Array.fromList
-                    [ { position = Point3d.meters 0 0 0.4, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.meters 5 0 0.4, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.meters 5 3 0.4, uv = ( 1.0, 1.0 ) } -- 2
-                    , { position = Point3d.meters 0 3 0.4, uv = ( 0.0, 1.0 ) } -- 3
-                    , { position = Point3d.meters 0 0 0.4, uv = ( 0.0, 0.0 ) }
+                    [ { position = Point3d.centimeters 0 0 0.4, uv = ( 0.0, 0.0 ) } -- 0
+                    , { position = Point3d.centimeters 5 0 0.4, uv = ( 1.0, 0.0 ) } -- 1
+                    , { position = Point3d.centimeters 5 3 0.4, uv = ( 1.0, 1.0 ) } -- 2
+                    , { position = Point3d.centimeters 0 3 0.4, uv = ( 0.0, 1.0 ) } -- 3
+                    , { position = Point3d.centimeters 0 0 0.4, uv = ( 0.0, 0.0 ) }
                     ]
                 )
                 [ ( 0, 1, 2 )
@@ -133,11 +133,11 @@ init () =
         lowerMesh =
             TriangularMesh.indexed
                 (Array.fromList
-                    [ { position = Point3d.meters 0 0 0, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.meters 5 0 0, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.meters 5 3 0, uv = ( 1.0, 1.0 ) } -- 2
-                    , { position = Point3d.meters 0 3 0, uv = ( 0.0, 1.0 ) } -- 3
-                    , { position = Point3d.meters 0 0 0, uv = ( 0.0, 0.0 ) }
+                    [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) } -- 0
+                    , { position = Point3d.centimeters 5 0 0, uv = ( 1.0, 0.0 ) } -- 1
+                    , { position = Point3d.centimeters 5 3 0, uv = ( 1.0, 1.0 ) } -- 2
+                    , { position = Point3d.centimeters 0 3 0, uv = ( 0.0, 1.0 ) } -- 3
+                    , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) }
                     ]
                 )
                 [ ( 0, 1, 2 )
@@ -147,17 +147,17 @@ init () =
         rawStripMesh =
             Mesh.texturedTriangles <|
                 TriangularMesh.strip
-                    [ { position = Point3d.meters 0 0 0.4, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.meters 5 0 0.4, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.meters 5 3 0.4, uv = ( 0.0, 0.0 ) } -- 2
-                    , { position = Point3d.meters 0 3 0.4, uv = ( 1.0, 0.0 ) } -- 3
-                    , { position = Point3d.meters 0 0 0.4, uv = ( 0.0, 0.0 ) }
+                    [ { position = Point3d.centimeters 0 0 0.4, uv = ( 0.0, 0.0 ) } -- 0
+                    , { position = Point3d.centimeters 5 0 0.4, uv = ( 1.0, 0.0 ) } -- 1
+                    , { position = Point3d.centimeters 5 3 0.4, uv = ( 0.0, 0.0 ) } -- 2
+                    , { position = Point3d.centimeters 0 3 0.4, uv = ( 1.0, 0.0 ) } -- 3
+                    , { position = Point3d.centimeters 0 0 0.4, uv = ( 0.0, 0.0 ) }
                     ]
-                    [ { position = Point3d.meters 0 0 0, uv = ( 0.0, 1.0 ) } -- 0
-                    , { position = Point3d.meters 5 0 0, uv = ( 1.0, 1.0 ) } -- 1
-                    , { position = Point3d.meters 5 3 0, uv = ( 0.0, 1.0 ) } -- 2
-                    , { position = Point3d.meters 0 3 0, uv = ( 1.0, 1.0 ) } -- 3
-                    , { position = Point3d.meters 0 0 0, uv = ( 0.0, 1.0 ) }
+                    [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) } -- 0
+                    , { position = Point3d.centimeters 5 0 0, uv = ( 1.0, 1.0 ) } -- 1
+                    , { position = Point3d.centimeters 5 3 0, uv = ( 0.0, 1.0 ) } -- 2
+                    , { position = Point3d.centimeters 0 3 0, uv = ( 1.0, 1.0 ) } -- 3
+                    , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) }
                     ]
     in
     -- In the init functio nwe store the previously created mesh and other values since creation of a mesh is an expensive operation
@@ -421,10 +421,10 @@ view model =
 
         viewpoint =
             Viewpoint3d.orbitZ
-                { focalPoint = Point3d.meters 0 0 0
+                { focalPoint = Point3d.centimeters 0 0 0
                 , azimuth = model.azimuth
                 , elevation = model.elevation
-                , distance = Length.meters 20
+                , distance = Length.centimeters 20
                 }
 
         -- Create a camera with the viewpoint location as mentioned before.
@@ -457,25 +457,25 @@ view model =
         xAxisCylinder =
             Scene3d.cylinder xAxisMaterial <|
                 Cylinder3d.along Axis3d.x
-                    { start = Length.meters 0
-                    , end = Length.meters 32
-                    , radius = Length.meters 0.05
+                    { start = Length.centimeters 0
+                    , end = Length.centimeters 32
+                    , radius = Length.centimeters 0.05
                     }
 
         yAxisCylinder =
             Scene3d.cylinder yAxisMaterial <|
                 Cylinder3d.along Axis3d.y
-                    { start = Length.meters 0
-                    , end = Length.meters 32
-                    , radius = Length.meters 0.05
+                    { start = Length.centimeters 0
+                    , end = Length.centimeters 32
+                    , radius = Length.centimeters 0.05
                     }
 
         zAxisCylinder =
             Scene3d.cylinder zAxisMaterial <|
                 Cylinder3d.along Axis3d.z
-                    { start = Length.meters 0
-                    , end = Length.meters 32
-                    , radius = Length.meters 0.05
+                    { start = Length.centimeters 0
+                    , end = Length.centimeters 32
+                    , radius = Length.centimeters 0.05
                     }
 
         -- Grouping the 3 axis into one entity for readability
@@ -489,10 +489,10 @@ view model =
         -- 2D XY plane Grid
         xyGrid =
             Scene3d.quad (Material.texturedColor model.gridTexture)
-                (Point3d.meters -32 32 -0.25)
-                (Point3d.meters 32 32 -0.25)
-                (Point3d.meters 32 -32 -0.25)
-                (Point3d.meters -32 -32 -0.25)
+                (Point3d.centimeters -32 32 -0.25)
+                (Point3d.centimeters 32 32 -0.25)
+                (Point3d.centimeters 32 -32 -0.25)
+                (Point3d.centimeters -32 -32 -0.25)
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
