@@ -11,8 +11,10 @@ module Main exposing (main)
        1. Generate a 3D environment with a 3D clt plank. (Done)
        2. Add a background. (Done)
        3. Add orbiting camera on mouse click and drag. (Done)
-       4. Look into 2D widgets for controls(sliders) and information.
+       4. Overlay - Look into 2D widgets for controls(sliders) and information.
        5. Add dynamic resizing of the scene. (Done)
+       6. XY plane Grid (done)
+       7. Make CLT plank Clickable -> Highlight and Focus with onClick.
 -}
 -- IMPORTS
 
@@ -28,13 +30,14 @@ import Color exposing (Color, black, blue, lightOrange)
 import Cylinder3d exposing (Cylinder3d)
 import Direction3d
 import Duration exposing (Duration)
+import GraphicSVG exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Illuminance
 import Json.Decode as Decode exposing (Decoder)
 import Length exposing (Meters)
-import Pixels exposing (Pixels)
+import Pixels exposing (Pixels, float)
 import Point3d
 import Quantity exposing (Quantity)
 import Scene3d
@@ -55,11 +58,65 @@ import WebGL.Texture exposing (Texture)
 
 
 collageWidth =
-    198
+    240
 
 
 collageHeight =
     128
+
+
+
+-- Boolean to check whether animations are turned on
+
+
+isAnimating model =
+    False
+
+
+
+-- Shapes model to render 2D overlay using GraphicSVG
+
+
+myShapes model =
+    [ textBox 20 10 True False [ "Rotate" ] |> move ( 110, 40 ) |> notifyTap (RotateObject 1)
+    , textBox 20 10 True False [ "Cut" ] |> move ( 110, 20 )
+    , textBox 20 10 True False [ "Play" ] |> move ( 110, 0 )
+    , textBox 20 10 True False [ "Focus" ] |> move ( 110, -20 ) |> notifyTap (FocusChange 10 10 0)
+    , textBox 20 10 True False [ "Reset" ] |> move ( 110, -40 ) |> notifyTap (FocusChange 0 0 0)
+    , textBox 40 20 True True [ "Code Generator: " ] |> move ( -100, -40 )
+    ]
+
+
+
+-- Textbox overlay template
+
+
+textBox width height isHighlighted isSelectable chars =
+    [ rect width height |> filled white
+    , if isSelectable then
+        GraphicSVG.text (String.join "" <| List.reverse chars)
+            |> centered
+            |> GraphicSVG.size 4
+            -- |> selectable
+            |> filled GraphicSVG.black
+            |> clip (rect width height |> ghost)
+
+      else
+        GraphicSVG.text (String.join "" <| List.reverse chars)
+            |> centered
+            |> GraphicSVG.size 4
+            |> filled GraphicSVG.black
+            |> clip (rect width height |> ghost)
+    , rect width height
+        |> outlined (solid 1)
+            (if isHighlighted then
+                rgb 0 0 255
+
+             else
+                charcoal
+            )
+    ]
+        |> group
 
 
 
@@ -91,12 +148,14 @@ type alias Model =
     , elapsedTime : Duration
     , azimuth : Angle
     , elevation : Angle
+    , focusAt : Point3d.Point3d Meters WorldCoordinates
     , isOrbiting : Bool
+    , cltRotationAngle : Angle
     , cltMesh1 : Mesh.Unlit WorldCoordinates
     , cltMesh2 : Mesh.Unlit WorldCoordinates
-    , cltTopTexture : Material.Texture Color
-    , cltSideTexture : Material.Texture Color
-    , gridTexture : Material.Texture Color
+    , cltTopTexture : Material.Texture Color.Color
+    , cltSideTexture : Material.Texture Color.Color
+    , gridTexture : Material.Texture Color.Color
     }
 
 
@@ -175,7 +234,9 @@ init () =
       , elapsedTime = Quantity.zero
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
+      , focusAt = Point3d.centimeters 0 0 0
       , isOrbiting = False
+      , cltRotationAngle = Angle.degrees 0
       , cltMesh1 = mesh
       , cltMesh2 = rawStripMesh
       , cltTopTexture = Material.constant Color.black
@@ -227,10 +288,13 @@ gridTextureURL =
 type Msg
     = Tick Duration
     | WindowResize (Maybe ( Int, Int ))
+    | ReturnPosition (( Float, Float ) -> Msg) ( Float, Float )
     | MouseDown
     | MouseUp
     | MouseMove (Quantity Float Pixels) (Quantity Float Pixels)
-    | GotTexture String (Result WebGL.Texture.Error (Material.Texture Color))
+    | GotTexture String (Result WebGL.Texture.Error (Material.Texture Color.Color))
+    | FocusChange Float Float Float
+    | RotateObject Int
     | NoOp
 
 
@@ -260,6 +324,15 @@ update msg model =
                     ( model
                     , getViewportSize
                     )
+
+        ReturnPosition message ( x, y ) ->
+            let
+                ( newModel, userCmds ) =
+                    update
+                        (message (convertCoords model.window ( x, y )))
+                        model
+            in
+            ( newModel, userCmds )
 
         -- Mouse events which are used to set the boolean value for isOrbiting in the model based on whetehr the user is clicking and dragging.
         MouseDown ->
@@ -318,6 +391,12 @@ update msg model =
 
             else
                 ( { model | cltSideTexture = Material.constant Color.blue }, Cmd.none )
+
+        FocusChange x y z ->
+            ( { model | focusAt = Point3d.centimeters x y z }, Cmd.none )
+
+        RotateObject id ->
+            ( { model | cltRotationAngle = Quantity.plus model.cltRotationAngle (Angle.degrees 90) }, Cmd.none )
 
         -- Default catch to make no change to model/state.
         NoOp ->
@@ -393,6 +472,103 @@ getViewportSize =
         getViewport
 
 
+createCollage : Float -> Float -> List (Shape Msg) -> Html.Html Msg
+createCollage w h shapes =
+    Svg.svg
+        [ SA.width "100%"
+        , SA.height "100%"
+        , SA.style "position:absolute;top:0px;left:0px;"
+        , SA.viewBox
+            (String.fromFloat (-w / 2)
+                ++ " "
+                ++ String.fromFloat (-h / 2)
+                ++ " "
+                ++ String.fromFloat w
+                ++ " "
+                ++ String.fromFloat h
+            )
+        , SA.id "render"
+        ]
+        (cPath w h
+            :: [ Svg.g
+                    [ SA.clipPath "url(#cPath)" ]
+                    (List.indexedMap
+                        (\n -> createSVG (String.fromInt n) w h ident identity ReturnPosition)
+                        shapes
+                    )
+               ]
+        )
+
+
+cPath : Float -> Float -> Svg.Svg Msg
+cPath w h =
+    Svg.defs []
+        [ Svg.clipPath
+            [ SA.id "cPath" ]
+            [ Svg.rect
+                [ SA.width (String.fromFloat w)
+                , SA.height (String.fromFloat h)
+                , SA.x (String.fromFloat (-w / 2))
+                , SA.y (String.fromFloat (-h / 2))
+                ]
+                []
+            ]
+        ]
+
+
+convertCoords :
+    Window
+    -> ( Float, Float )
+    -> ( Float, Float ) -- NOTE:  reversed args
+convertCoords gModel ( x, y ) =
+    let
+        sw =
+            gModel.sw
+
+        sh =
+            gModel.sh
+
+        cw =
+            gModel.cw
+
+        ch =
+            gModel.ch
+
+        aspectout =
+            if not (sh == 0) then
+                toFloat sw / toFloat sh
+
+            else
+                4 / 3
+
+        aspectin =
+            if not (ch == 0) then
+                cw / ch
+
+            else
+                4 / 3
+
+        scaledInX =
+            aspectout < aspectin
+
+        scaledInY =
+            aspectout > aspectin
+
+        cscale =
+            if scaledInX then
+                toFloat sw / cw
+
+            else if scaledInY then
+                toFloat sh / ch
+
+            else
+                1
+    in
+    ( (x - toFloat sw / 2) / cscale
+    , (y + toFloat sh / 2) / cscale
+    )
+
+
 
 -- This is the main view module responsible for displaying the elements on the HTML browser with the help of JavaScript.
 -- Here it is slightly modified to output a Browser.Document (which includes Html) type instead of Html type because out elm app type is a Browser.document.
@@ -421,7 +597,7 @@ view model =
 
         viewpoint =
             Viewpoint3d.orbitZ
-                { focalPoint = Point3d.centimeters 0 0 0
+                { focalPoint = model.focusAt
                 , azimuth = model.azimuth
                 , elevation = model.elevation
                 , distance = Length.centimeters 20
@@ -493,12 +669,22 @@ view model =
                 (Point3d.centimeters 32 32 -0.25)
                 (Point3d.centimeters 32 -32 -0.25)
                 (Point3d.centimeters -32 -32 -0.25)
+
+        -- CLT plank
+        cltPlank =
+            Scene3d.group
+                [ Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
+                , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
+                ]
+
+        rotationAxis =
+            Axis3d.through (Point3d.meters 0 0 0) Direction3d.x
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
     , body =
         [ div []
-            [ h1 [ style "margin" "0px", style "text-align" "center" ] [ text "CLTCreator" ]
+            [ h1 [ style "margin" "0px", style "text-align" "center" ] [ Html.text "CLTCreator" ]
 
             -- This part includes a Scene3d.custom which is a datatype used to render 3D scenes from the elm-3d-scene library.
             -- we input the values for creating the 3D environment with the values and entities that we have created before.
@@ -515,10 +701,10 @@ view model =
                 , entities =
                     [ axisReference
                     , xyGrid
-                    , Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
-                    , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
+                    , cltPlank |> Scene3d.rotateAround rotationAxis model.cltRotationAngle
                     ]
                 }
+            , createCollage collageWidth collageHeight <| myShapes model
             ]
         ]
     }
