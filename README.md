@@ -26,3 +26,5 @@ Commit 4:
 Commit 5:
 - Changed units to centimeters for backward compatibility.
 - Made UI fixes.
+- All three axis rotations work now. 
+- Rotations are in 90 degree increments.

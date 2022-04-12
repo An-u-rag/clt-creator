@@ -78,16 +78,16 @@ isAnimating model =
 
 
 myShapes model =
-    [-- textBox 30 35 True False [] |> move (105, 25) |> makeTransparent 0.8 --main, biggest box
+    [ -- textBox 30 35 True False [] |> move (105, 25) |> makeTransparent 0.8 --main, biggest box
       textBox 30 5 True False [ "OPERATIONS" ] |> move ( 105, 40 )
-    , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 105, 35 ) |> notifyTap (RotateObjectX 1) 
-    , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 105, 30 ) |> notifyTap (RotateObjectY 1) 
-    , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObjectZ 1) 
-    , textBox 30 5 True False [ "Cut" ] |> move ( 105, 0 ) 
+    , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 105, 35 ) |> notifyTap (RotateObject 1 'X')
+    , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 105, 30 ) |> notifyTap (RotateObject 1 'Y')
+    , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObject 1 'Z')
+    , textBox 30 5 True False [ "Cut" ] |> move ( 105, 0 )
     , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 )
-    , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange 10 10 0) 
-    , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange 0 0 0) 
-    , textBox 40 20 True True [ "Your Code: " ] |> move ( -100, -40 ) 
+    , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange 10 10 0)
+    , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange 0 0 0)
+    , textBox 40 20 True True [ "Your Code: " ] |> move ( -100, -40 )
     ]
 
 
@@ -104,7 +104,7 @@ textBox width height isHighlighted isSelectable chars =
             -- |> selectable
             |> filled GraphicSVG.black
             |> clip (rect width height |> ghost)
-         
+
       else
         GraphicSVG.text (String.join "" <| List.reverse chars)
             |> centered
@@ -154,7 +154,9 @@ type alias Model =
     , elevation : Angle
     , focusAt : Point3d.Point3d Meters WorldCoordinates
     , isOrbiting : Bool
-    , cltRotationAngle : Angle
+    , cltRotationAngleX : Angle
+    , cltRotationAngleY : Angle
+    , cltRotationAngleZ : Angle
     , cltMesh1 : Mesh.Unlit WorldCoordinates
     , cltMesh2 : Mesh.Unlit WorldCoordinates
     , cltTopTexture : Material.Texture Color.Color
@@ -240,7 +242,9 @@ init () =
       , elevation = Angle.degrees 30
       , focusAt = Point3d.centimeters 0 0 0
       , isOrbiting = False
-      , cltRotationAngle = Angle.degrees 0
+      , cltRotationAngleX = Angle.degrees 0
+      , cltRotationAngleY = Angle.degrees 0
+      , cltRotationAngleZ = Angle.degrees 0
       , cltMesh1 = mesh
       , cltMesh2 = rawStripMesh
       , cltTopTexture = Material.constant Color.black
@@ -298,9 +302,7 @@ type Msg
     | MouseMove (Quantity Float Pixels) (Quantity Float Pixels)
     | GotTexture String (Result WebGL.Texture.Error (Material.Texture Color.Color))
     | FocusChange Float Float Float
-    | RotateObjectX Int
-    | RotateObjectY Int
-    | RotateObjectZ Int
+    | RotateObject Int Char
     | NoOp
 
 
@@ -401,14 +403,18 @@ update msg model =
         FocusChange x y z ->
             ( { model | focusAt = Point3d.centimeters x y z }, Cmd.none )
 
-        RotateObjectX id ->
-            ( { model | cltRotationAngle = Quantity.plus model.cltRotationAngle (Angle.degrees 90) }, Cmd.none )
+        RotateObject id axis ->
+            if axis == 'X' || axis == 'x' then
+                ( { model | cltRotationAngleX = Quantity.plus model.cltRotationAngleX (Angle.degrees 90) }, Cmd.none )
 
-        RotateObjectY id ->
-            ( { model | cltRotationAngle = Quantity.plus model.cltRotationAngle (Angle.degrees 90) }, Cmd.none )
-        
-        RotateObjectZ id ->
-            ( { model | cltRotationAngle = Quantity.plus model.cltRotationAngle (Angle.degrees 90) }, Cmd.none )
+            else if axis == 'Y' || axis == 'y' then
+                ( { model | cltRotationAngleY = Quantity.plus model.cltRotationAngleY (Angle.degrees 90) }, Cmd.none )
+
+            else if axis == 'Z' || axis == 'z' then
+                ( { model | cltRotationAngleZ = Quantity.plus model.cltRotationAngleZ (Angle.degrees 90) }, Cmd.none )
+
+            else
+                ( model, Cmd.none )
 
         -- Default catch to make no change to model/state.
         NoOp ->
@@ -682,13 +688,6 @@ view model =
                 (Point3d.centimeters 32 -32 -0.25)
                 (Point3d.centimeters -32 -32 -0.25)
 
-        -- CLT plank
-        cltPlank =
-            Scene3d.group
-                [ Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
-                , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
-                ]
-
         rotationAxisX =
             Axis3d.through (Point3d.meters 0 0 0) Direction3d.x
 
@@ -697,6 +696,16 @@ view model =
 
         rotationAxisZ =
             Axis3d.through (Point3d.meters 0 0 0) Direction3d.z
+
+        -- CLT plank
+        cltPlank =
+            Scene3d.group
+                [ Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
+                , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
+                ]
+                |> Scene3d.rotateAround rotationAxisX model.cltRotationAngleX
+                |> Scene3d.rotateAround rotationAxisY model.cltRotationAngleY
+                |> Scene3d.rotateAround rotationAxisZ model.cltRotationAngleZ
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
@@ -719,7 +728,7 @@ view model =
                 , entities =
                     [ axisReference
                     , xyGrid
-                    , cltPlank |> Scene3d.rotateAround rotationAxisX model.cltRotationAngle 
+                    , cltPlank
                     ]
                 }
             , createCollage collageWidth collageHeight <| myShapes model
