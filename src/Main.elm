@@ -78,12 +78,25 @@ isAnimating model =
 
 
 myShapes model =
+<<<<<<< HEAD
     [ textBox 20 10 True False [ "Rotate" ] |> move ( 110, 40 ) |> notifyTap (RotateObject 1)
     , textBox 20 10 True False [ "Cut" ] |> move ( 110, 20 )
     , textBox 20 10 True False [ "Play" ] |> move ( 110, 0 )
     , textBox 20 10 True False [ "Focus" ] |> move ( 110, -20 ) |> notifyTap (FocusChange 10 10 0)
     , textBox 20 10 True False [ "Reset" ] |> move ( 110, -40 ) |> notifyTap (FocusChange 0 0 0)
     , textBox 40 20 True True [ "Code Generator: " ] |> move ( -100, -40 )
+=======
+    [-- textBox 30 35 True False [] |> move (105, 25) |> makeTransparent 0.8 --main, biggest box
+    textBox 30 5 True False [ "OPERATIONS" ] |> move ( 105, 40 )
+    , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 105, 35 ) |> notifyTap (RotateObjectX 1) 
+    , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 105, 30 ) |> notifyTap (RotateObjectY 1) 
+    , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObjectZ 1) 
+    , textBox 30 5 True False [ "Cut" ] |> move ( 105, 0 ) 
+    , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 )
+    , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange 10 10 0) 
+    , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange 0 0 0) 
+    , textBox 40 20 True True [ "Your Code: " ] |> move ( -100, -40 ) 
+>>>>>>> c5dc4e6 (folder structure fix)
     ]
 
 
@@ -92,6 +105,7 @@ myShapes model =
 
 
 textBox width height isHighlighted isSelectable chars =
+<<<<<<< HEAD
     [ rect width height |> filled white
     , if isSelectable then
         GraphicSVG.text (String.join "" <| List.reverse chars)
@@ -111,6 +125,27 @@ textBox width height isHighlighted isSelectable chars =
         |> outlined (solid 1)
             (if isHighlighted then
                 rgb 0 0 255
+=======
+    [ rect width height |> filled white |> makeTransparent 0.8
+    , if isSelectable then
+        GraphicSVG.text (String.join "" <| List.reverse chars)
+            |> centered
+            |> GraphicSVG.size 3
+            -- |> selectable
+            |> filled GraphicSVG.black
+            |> clip (rect width height |> ghost)
+         
+      else
+        GraphicSVG.text (String.join "" <| List.reverse chars)
+            |> centered
+            |> GraphicSVG.size 3
+            |> filled GraphicSVG.black
+            |> clip (rect width height |> ghost)
+    , rect width height
+        |> outlined (solid 0.2)
+            (if isHighlighted then
+                rgb 0 0 0
+>>>>>>> c5dc4e6 (folder structure fix)
 
              else
                 charcoal
@@ -270,7 +305,11 @@ cltSideTextureURL =
 
 gridTextureURL : String
 gridTextureURL =
+<<<<<<< HEAD
     "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/GraphPaperTextures/gridx64-1024.png"
+=======
+    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/GraphPaperTextures/GraphPaper1024-grey.png"
+>>>>>>> c5dc4e6 (folder structure fix)
 
 
 
@@ -294,7 +333,13 @@ type Msg
     | MouseMove (Quantity Float Pixels) (Quantity Float Pixels)
     | GotTexture String (Result WebGL.Texture.Error (Material.Texture Color.Color))
     | FocusChange Float Float Float
+<<<<<<< HEAD
     | RotateObject Int
+=======
+    | RotateObjectX Int
+    | RotateObjectY Int
+    | RotateObjectZ Int
+>>>>>>> c5dc4e6 (folder structure fix)
     | NoOp
 
 
@@ -395,7 +440,17 @@ update msg model =
         FocusChange x y z ->
             ( { model | focusAt = Point3d.centimeters x y z }, Cmd.none )
 
+<<<<<<< HEAD
         RotateObject id ->
+=======
+        RotateObjectX id ->
+            ( { model | cltRotationAngle = Quantity.plus model.cltRotationAngle (Angle.degrees 90) }, Cmd.none )
+
+        RotateObjectY id ->
+            ( { model | cltRotationAngle = Quantity.plus model.cltRotationAngle (Angle.degrees 90) }, Cmd.none )
+        
+        RotateObjectZ id ->
+>>>>>>> c5dc4e6 (folder structure fix)
             ( { model | cltRotationAngle = Quantity.plus model.cltRotationAngle (Angle.degrees 90) }, Cmd.none )
 
         -- Default catch to make no change to model/state.
@@ -677,8 +732,19 @@ view model =
                 , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
                 ]
 
+<<<<<<< HEAD
         rotationAxis =
             Axis3d.through (Point3d.meters 0 0 0) Direction3d.x
+=======
+        rotationAxisX =
+            Axis3d.through (Point3d.meters 0 0 0) Direction3d.x
+
+        rotationAxisY =
+            Axis3d.through (Point3d.meters 0 0 0) Direction3d.y
+
+        rotationAxisZ =
+            Axis3d.through (Point3d.meters 0 0 0) Direction3d.z
+>>>>>>> c5dc4e6 (folder structure fix)
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
@@ -701,7 +767,11 @@ view model =
                 , entities =
                     [ axisReference
                     , xyGrid
+<<<<<<< HEAD
                     , cltPlank |> Scene3d.rotateAround rotationAxis model.cltRotationAngle
+=======
+                    , cltPlank |> Scene3d.rotateAround rotationAxisX model.cltRotationAngle 
+>>>>>>> c5dc4e6 (folder structure fix)
                     ]
                 }
             , createCollage collageWidth collageHeight <| myShapes model
