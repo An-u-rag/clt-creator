@@ -28,3 +28,8 @@ Commit 5:
 - Made UI fixes.
 - All three axis rotations work now. 
 - Rotations are in 90 degree increments.
+
+Commit 6:
+- Added Cutting mode to set to 2D automatically.
+- Added Scrolling functionality in increments of 50 centimeters.
+- Added Genration of Code string as a Model variable.

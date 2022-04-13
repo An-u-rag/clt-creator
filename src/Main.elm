@@ -36,6 +36,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Illuminance
 import Json.Decode as Decode exposing (Decoder)
+import Json.Decode.Extra exposing (andMap)
 import Length exposing (Meters)
 import Pixels exposing (Pixels, float)
 import Point3d
@@ -83,11 +84,11 @@ myShapes model =
     , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 105, 35 ) |> notifyTap (RotateObject 1 'X')
     , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 105, 30 ) |> notifyTap (RotateObject 1 'Y')
     , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObject 1 'Z')
-    , textBox 30 5 True False [ "Cut" ] |> move ( 105, 0 )
+    , textBox 30 5 True False [ "Cutter" ] |> move ( 105, 0 ) |> notifyTap Set2D
     , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 )
     , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange 10 10 0)
     , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange 0 0 0)
-    , textBox 40 20 True True [ "Your Code: " ] |> move ( -100, -40 )
+    , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
     ]
 
 
@@ -132,6 +133,18 @@ type WorldCoordinates
 
 
 
+-- MouseWheel data for zooming
+
+
+type alias MouseWheelEvent =
+    { deltaX : Float
+    , deltaY : Float
+    , clientX : Float
+    , clientY : Float
+    }
+
+
+
 -- Window is a type alias for a custom record used to hold values for Collage and Scene Dimensions.
 
 
@@ -152,6 +165,7 @@ type alias Model =
     , elapsedTime : Duration
     , azimuth : Angle
     , elevation : Angle
+    , zoom : Float
     , focusAt : Point3d.Point3d Meters WorldCoordinates
     , isOrbiting : Bool
     , cltRotationAngleX : Angle
@@ -162,6 +176,7 @@ type alias Model =
     , cltTopTexture : Material.Texture Color.Color
     , cltSideTexture : Material.Texture Color.Color
     , gridTexture : Material.Texture Color.Color
+    , genCode : String
     }
 
 
@@ -184,11 +199,11 @@ init () =
         upperMesh =
             TriangularMesh.indexed
                 (Array.fromList
-                    [ { position = Point3d.centimeters 0 0 0.4, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.centimeters 5 0 0.4, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.centimeters 5 3 0.4, uv = ( 1.0, 1.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 3 0.4, uv = ( 0.0, 1.0 ) } -- 3
-                    , { position = Point3d.centimeters 0 0 0.4, uv = ( 0.0, 0.0 ) }
+                    [ { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) } -- 0
+                    , { position = Point3d.centimeters 152 0 4, uv = ( 1.0, 0.0 ) } -- 1
+                    , { position = Point3d.centimeters 152 30.5 4, uv = ( 1.0, 1.0 ) } -- 2
+                    , { position = Point3d.centimeters 0 30.5 4, uv = ( 0.0, 1.0 ) } -- 3
+                    , { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) }
                     ]
                 )
                 [ ( 0, 1, 2 )
@@ -199,9 +214,9 @@ init () =
             TriangularMesh.indexed
                 (Array.fromList
                     [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.centimeters 5 0 0, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.centimeters 5 3 0, uv = ( 1.0, 1.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 3 0, uv = ( 0.0, 1.0 ) } -- 3
+                    , { position = Point3d.centimeters 152 0 0, uv = ( 1.0, 0.0 ) } -- 1
+                    , { position = Point3d.centimeters 152 30 0, uv = ( 1.0, 1.0 ) } -- 2
+                    , { position = Point3d.centimeters 0 30 0, uv = ( 0.0, 1.0 ) } -- 3
                     , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) }
                     ]
                 )
@@ -212,16 +227,16 @@ init () =
         rawStripMesh =
             Mesh.texturedTriangles <|
                 TriangularMesh.strip
-                    [ { position = Point3d.centimeters 0 0 0.4, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.centimeters 5 0 0.4, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.centimeters 5 3 0.4, uv = ( 0.0, 0.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 3 0.4, uv = ( 1.0, 0.0 ) } -- 3
-                    , { position = Point3d.centimeters 0 0 0.4, uv = ( 0.0, 0.0 ) }
+                    [ { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) } -- 0
+                    , { position = Point3d.centimeters 152 0 4, uv = ( 1.0, 0.0 ) } -- 1
+                    , { position = Point3d.centimeters 152 30 4, uv = ( 0.0, 0.0 ) } -- 2
+                    , { position = Point3d.centimeters 0 30 4, uv = ( 1.0, 0.0 ) } -- 3
+                    , { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) }
                     ]
                     [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) } -- 0
-                    , { position = Point3d.centimeters 5 0 0, uv = ( 1.0, 1.0 ) } -- 1
-                    , { position = Point3d.centimeters 5 3 0, uv = ( 0.0, 1.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 3 0, uv = ( 1.0, 1.0 ) } -- 3
+                    , { position = Point3d.centimeters 152 0 0, uv = ( 1.0, 1.0 ) } -- 1
+                    , { position = Point3d.centimeters 152 30 0, uv = ( 0.0, 1.0 ) } -- 2
+                    , { position = Point3d.centimeters 0 30 0, uv = ( 1.0, 1.0 ) } -- 3
                     , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) }
                     ]
     in
@@ -240,6 +255,7 @@ init () =
       , elapsedTime = Quantity.zero
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
+      , zoom = 300
       , focusAt = Point3d.centimeters 0 0 0
       , isOrbiting = False
       , cltRotationAngleX = Angle.degrees 0
@@ -250,13 +266,14 @@ init () =
       , cltTopTexture = Material.constant Color.black
       , cltSideTexture = Material.constant Color.black
       , gridTexture = Material.constant Color.black
+      , genCode = "Your Code: "
       }
     , Cmd.batch
         [ getViewportSize
 
         -- Important to note that we render the below textures using trilinearFiltering texture/ image filtering.
         , Task.attempt (GotTexture "top") (Material.loadWith Material.bilinearFiltering cltTopTextureURL)
-        , Task.attempt (GotTexture "side") (Material.loadWith Material.bilinearFiltering cltSideTextureURL)
+        , Task.attempt (GotTexture "side") (Material.loadWith Material.trilinearFiltering cltSideTextureURL)
         , Task.attempt (GotTexture "grid") (Material.loadWith Material.trilinearFiltering gridTextureURL)
         ]
     )
@@ -278,7 +295,7 @@ cltSideTextureURL =
 
 gridTextureURL : String
 gridTextureURL =
-    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/GraphPaperTextures/GraphPaper1024-grey.png"
+    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/GraphPaperTextures/GraphPaper2048-512x512-grey.png"
 
 
 
@@ -303,6 +320,9 @@ type Msg
     | GotTexture String (Result WebGL.Texture.Error (Material.Texture Color.Color))
     | FocusChange Float Float Float
     | RotateObject Int Char
+    | Set2D
+    | CheckZoom
+    | Zoom MouseWheelEvent
     | NoOp
 
 
@@ -416,6 +436,22 @@ update msg model =
             else
                 ( model, Cmd.none )
 
+        Set2D ->
+            ( { model | azimuth = Angle.degrees 270, elevation = Angle.degrees 90 }, Cmd.none )
+
+        CheckZoom ->
+            ( model, Cmd.none )
+
+        Zoom e ->
+            if e.deltaY > 0 && model.zoom < 600 then
+                ( { model | zoom = model.zoom + 50 }, Cmd.none )
+
+            else if e.deltaY < 0 && model.zoom > 50 then
+                ( { model | zoom = model.zoom - 50 }, Cmd.none )
+
+            else
+                ( model, Cmd.none )
+
         -- Default catch to make no change to model/state.
         NoOp ->
             ( model, Cmd.none )
@@ -459,6 +495,23 @@ subscriptions model =
             [ Browser.Events.onMouseDown (Decode.succeed MouseDown)
             , Browser.Events.onAnimationFrameDelta (Duration.milliseconds >> Tick)
             ]
+
+
+{-| -}
+onScroll : Msg -> Attribute Msg
+onScroll msg =
+    on "wheel" (decodeMouseScroll msg)
+
+
+decodeMouseScroll : msg -> Decode.Decoder Msg
+decodeMouseScroll msg =
+    Decode.map Zoom
+        (Decode.succeed MouseWheelEvent
+            |> andMap (Decode.field "deltaX" Decode.float)
+            |> andMap (Decode.field "deltaY" Decode.float)
+            |> andMap (Decode.field "clientX" Decode.float)
+            |> andMap (Decode.field "clientY" Decode.float)
+        )
 
 
 
@@ -618,7 +671,7 @@ view model =
                 { focalPoint = model.focusAt
                 , azimuth = model.azimuth
                 , elevation = model.elevation
-                , distance = Length.centimeters 20
+                , distance = Length.centimeters model.zoom
                 }
 
         -- Create a camera with the viewpoint location as mentioned before.
@@ -652,24 +705,24 @@ view model =
             Scene3d.cylinder xAxisMaterial <|
                 Cylinder3d.along Axis3d.x
                     { start = Length.centimeters 0
-                    , end = Length.centimeters 32
-                    , radius = Length.centimeters 0.05
+                    , end = Length.centimeters 1000
+                    , radius = Length.centimeters 0.5
                     }
 
         yAxisCylinder =
             Scene3d.cylinder yAxisMaterial <|
                 Cylinder3d.along Axis3d.y
                     { start = Length.centimeters 0
-                    , end = Length.centimeters 32
-                    , radius = Length.centimeters 0.05
+                    , end = Length.centimeters 1000
+                    , radius = Length.centimeters 0.5
                     }
 
         zAxisCylinder =
             Scene3d.cylinder zAxisMaterial <|
                 Cylinder3d.along Axis3d.z
                     { start = Length.centimeters 0
-                    , end = Length.centimeters 32
-                    , radius = Length.centimeters 0.05
+                    , end = Length.centimeters 1000
+                    , radius = Length.centimeters 0.5
                     }
 
         -- Grouping the 3 axis into one entity for readability
@@ -683,10 +736,10 @@ view model =
         -- 2D XY plane Grid
         xyGrid =
             Scene3d.quad (Material.texturedColor model.gridTexture)
-                (Point3d.centimeters -32 32 -0.25)
-                (Point3d.centimeters 32 32 -0.25)
-                (Point3d.centimeters 32 -32 -0.25)
-                (Point3d.centimeters -32 -32 -0.25)
+                (Point3d.centimeters -256 256 -0.25)
+                (Point3d.centimeters 256 256 -0.25)
+                (Point3d.centimeters 256 -256 -0.25)
+                (Point3d.centimeters -256 -256 -0.25)
 
         rotationAxisX =
             Axis3d.through (Point3d.meters 0 0 0) Direction3d.x
@@ -710,7 +763,7 @@ view model =
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
     , body =
-        [ div []
+        [ div [ onScroll CheckZoom ]
             [ h1 [ style "margin" "0px", style "text-align" "center" ] [ Html.text "CLTCreator" ]
 
             -- This part includes a Scene3d.custom which is a datatype used to render 3D scenes from the elm-3d-scene library.
