@@ -86,7 +86,7 @@ myShapes model =
     , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObject 1 'Z')
     , textBox 30 5 True False [ "Cutter" ] |> move ( 105, 0 ) |> notifyTap Set2D
     , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 )
-    , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange model.centerPoint)
+    , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
     , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
     , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
     ]
@@ -186,10 +186,7 @@ type alias Model =
     , zoom : Float
     , focusAt : Point3d Meters WorldCoordinates
     , isOrbiting : Bool
-    , cltRotationAngleX : Angle
-    , cltRotationAngleY : Angle
-    , cltRotationAngleZ : Angle
-    , centerPoint : Point3d Meters WorldCoordinates
+    , cltMain : CltPlank
     , cltMesh1 : Mesh.Unlit WorldCoordinates
     , cltMesh2 : Mesh.Unlit WorldCoordinates
     , cltTopTexture : Material.Texture Color.Color
@@ -279,10 +276,12 @@ init () =
       , zoom = 300
       , focusAt = Point3d.centimeters 0 0 0
       , isOrbiting = False
-      , cltRotationAngleX = Angle.degrees 0
-      , cltRotationAngleY = Angle.degrees 0
-      , cltRotationAngleZ = Angle.degrees 0
-      , centerPoint = calcCenter upperMesh rawStripMesh
+      , cltMain =
+            { rotationAngleX = Angle.degrees 0
+            , rotationAngleY = Angle.degrees 0
+            , rotationAngleZ = Angle.degrees 0
+            , centerPoint = calcCenter upperMesh rawStripMesh
+            }
       , cltMesh1 = mesh
       , cltMesh2 = stripMesh
       , cltTopTexture = Material.constant Color.black
@@ -494,17 +493,7 @@ update msg model =
             )
 
         RotateObject id axis ->
-            if axis == 'X' || axis == 'x' then
-                ( { model | cltRotationAngleX = Quantity.plus model.cltRotationAngleX (Angle.degrees 90) }, Cmd.none )
-
-            else if axis == 'Y' || axis == 'y' then
-                ( { model | cltRotationAngleY = Quantity.plus model.cltRotationAngleY (Angle.degrees 90) }, Cmd.none )
-
-            else if axis == 'Z' || axis == 'z' then
-                ( { model | cltRotationAngleZ = Quantity.plus model.cltRotationAngleZ (Angle.degrees 90) }, Cmd.none )
-
-            else
-                ( model, Cmd.none )
+            ( { model | cltMain = rotateClt model model.cltMain id axis }, Cmd.none )
 
         Set2D ->
             ( { model | azimuth = Angle.degrees 270, elevation = Angle.degrees 90 }, Cmd.none )
@@ -525,6 +514,30 @@ update msg model =
         -- Default catch to make no change to model/state.
         NoOp ->
             ( model, Cmd.none )
+
+
+rotateClt : Model -> CltPlank -> Int -> Char -> CltPlank
+rotateClt model clt id axis =
+    if axis == 'X' || axis == 'x' then
+        { clt
+            | rotationAngleX = Quantity.plus model.cltMain.rotationAngleX (Angle.degrees 90)
+            , centerPoint = Point3d.rotateAround Axis3d.x (Angle.degrees 90) clt.centerPoint
+        }
+
+    else if axis == 'Y' || axis == 'y' then
+        { clt
+            | rotationAngleY = Quantity.plus model.cltMain.rotationAngleY (Angle.degrees 90)
+            , centerPoint = Point3d.rotateAround Axis3d.y (Angle.degrees 90) clt.centerPoint
+        }
+
+    else if axis == 'Z' || axis == 'z' then
+        { clt
+            | rotationAngleZ = Quantity.plus model.cltMain.rotationAngleZ (Angle.degrees 90)
+            , centerPoint = Point3d.rotateAround Axis3d.z (Angle.degrees 90) clt.centerPoint
+        }
+
+    else
+        model.cltMain
 
 
 
@@ -812,13 +825,16 @@ view model =
                 (Point3d.centimeters -256 -256 -0.25)
 
         rotationAxisX =
-            Axis3d.through (Point3d.meters 0 0 0) Direction3d.x
+            Axis3d.through Point3d.origin Direction3d.x
 
         rotationAxisY =
-            Axis3d.through (Point3d.meters 0 0 0) Direction3d.y
+            Axis3d.through Point3d.origin Direction3d.y
 
         rotationAxisZ =
-            Axis3d.through (Point3d.meters 0 0 0) Direction3d.z
+            Axis3d.through Point3d.origin Direction3d.z
+
+        animatedRotationY =
+            Angle.degrees (Angle.inDegrees model.cltMain.rotationAngleY * Duration.inSeconds model.elapsedTime)
 
         -- CLT plank
         cltPlank =
@@ -826,9 +842,9 @@ view model =
                 [ Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
                 , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
                 ]
-                |> Scene3d.rotateAround rotationAxisX model.cltRotationAngleX
-                |> Scene3d.rotateAround rotationAxisY model.cltRotationAngleY
-                |> Scene3d.rotateAround rotationAxisZ model.cltRotationAngleZ
+                |> Scene3d.rotateAround rotationAxisX model.cltMain.rotationAngleX
+                |> Scene3d.rotateAround rotationAxisY model.cltMain.rotationAngleY
+                |> Scene3d.rotateAround rotationAxisZ model.cltMain.rotationAngleZ
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
