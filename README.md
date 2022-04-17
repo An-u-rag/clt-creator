@@ -33,3 +33,5 @@ Commit 6:
 - Added Cutting mode to set to 2D automatically.
 - Added Scrolling functionality in increments of 50 centimeters.
 - Added Genration of Code string as a Model variable.
+- Abstracted CltPlank type from Model.
+- Added dynamic focus at midpoint of cltPlank. (supports rotations)
