@@ -19,7 +19,7 @@ module Main exposing (main)
 -- IMPORTS
 
 import Angle exposing (Angle)
-import Array
+import Array exposing (Array)
 import Axis3d
 import Block3d exposing (axes)
 import Browser
@@ -39,7 +39,7 @@ import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Extra exposing (andMap)
 import Length exposing (Meters)
 import Pixels exposing (Pixels, float)
-import Point3d
+import Point3d exposing (Point3d)
 import Quantity exposing (Quantity)
 import Scene3d
 import Scene3d.Light as Light exposing (Light)
@@ -48,7 +48,7 @@ import Scene3d.Mesh as Mesh exposing (Mesh)
 import Svg
 import Svg.Attributes as SA
 import Task
-import TriangularMesh exposing (TriangularMesh)
+import TriangularMesh exposing (TriangularMesh, vertex)
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 
@@ -86,8 +86,8 @@ myShapes model =
     , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObject 1 'Z')
     , textBox 30 5 True False [ "Cutter" ] |> move ( 105, 0 ) |> notifyTap Set2D
     , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 )
-    , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange 10 10 0)
-    , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange 0 0 0)
+    , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange model.centerPoint)
+    , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
     , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
     ]
 
@@ -156,6 +156,24 @@ type alias Window =
     }
 
 
+type alias VertexData =
+    { position : Point3d.Point3d Meters WorldCoordinates
+    , uv : ( Float, Float )
+    }
+
+
+
+-- Clt Model to hold all values related to that clt entity.
+
+
+type alias CltPlank =
+    { rotationAngleX : Angle
+    , rotationAngleY : Angle
+    , rotationAngleZ : Angle
+    , centerPoint : Point3d Meters WorldCoordinates
+    }
+
+
 
 -- Main Model (State variable) type which is used to store current state values for the application.
 
@@ -166,11 +184,12 @@ type alias Model =
     , azimuth : Angle
     , elevation : Angle
     , zoom : Float
-    , focusAt : Point3d.Point3d Meters WorldCoordinates
+    , focusAt : Point3d Meters WorldCoordinates
     , isOrbiting : Bool
     , cltRotationAngleX : Angle
     , cltRotationAngleY : Angle
     , cltRotationAngleZ : Angle
+    , centerPoint : Point3d Meters WorldCoordinates
     , cltMesh1 : Mesh.Unlit WorldCoordinates
     , cltMesh2 : Mesh.Unlit WorldCoordinates
     , cltTopTexture : Material.Texture Color.Color
@@ -225,20 +244,22 @@ init () =
                 ]
 
         rawStripMesh =
-            Mesh.texturedTriangles <|
-                TriangularMesh.strip
-                    [ { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.centimeters 152 0 4, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.centimeters 152 30 4, uv = ( 0.0, 0.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 30 4, uv = ( 1.0, 0.0 ) } -- 3
-                    , { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) }
-                    ]
-                    [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) } -- 0
-                    , { position = Point3d.centimeters 152 0 0, uv = ( 1.0, 1.0 ) } -- 1
-                    , { position = Point3d.centimeters 152 30 0, uv = ( 0.0, 1.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 30 0, uv = ( 1.0, 1.0 ) } -- 3
-                    , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) }
-                    ]
+            TriangularMesh.strip
+                [ { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) } -- 0
+                , { position = Point3d.centimeters 152 0 4, uv = ( 1.0, 0.0 ) } -- 1
+                , { position = Point3d.centimeters 152 30 4, uv = ( 0.0, 0.0 ) } -- 2
+                , { position = Point3d.centimeters 0 30 4, uv = ( 1.0, 0.0 ) } -- 3
+                , { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) }
+                ]
+                [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) } -- 0
+                , { position = Point3d.centimeters 152 0 0, uv = ( 1.0, 1.0 ) } -- 1
+                , { position = Point3d.centimeters 152 30 0, uv = ( 0.0, 1.0 ) } -- 2
+                , { position = Point3d.centimeters 0 30 0, uv = ( 1.0, 1.0 ) } -- 3
+                , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) }
+                ]
+
+        stripMesh =
+            Mesh.texturedTriangles <| rawStripMesh
     in
     -- In the init functio nwe store the previously created mesh and other values since creation of a mesh is an expensive operation
     --   and changing the mesh frequently causes optimization issues.
@@ -261,8 +282,9 @@ init () =
       , cltRotationAngleX = Angle.degrees 0
       , cltRotationAngleY = Angle.degrees 0
       , cltRotationAngleZ = Angle.degrees 0
+      , centerPoint = calcCenter upperMesh rawStripMesh
       , cltMesh1 = mesh
-      , cltMesh2 = rawStripMesh
+      , cltMesh2 = stripMesh
       , cltTopTexture = Material.constant Color.black
       , cltSideTexture = Material.constant Color.black
       , gridTexture = Material.constant Color.black
@@ -277,6 +299,49 @@ init () =
         , Task.attempt (GotTexture "grid") (Material.loadWith Material.trilinearFiltering gridTextureURL)
         ]
     )
+
+
+addVertices : Maybe VertexData -> Maybe VertexData -> Point3d Meters WorldCoordinates
+addVertices a b =
+    let
+        ea =
+            Maybe.withDefault
+                { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) }
+                a
+
+        eb =
+            Maybe.withDefault
+                { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) }
+                b
+    in
+    Point3d.midpoint ea.position eb.position
+
+
+calcCenter : TriangularMesh VertexData -> TriangularMesh VertexData -> Point3d Meters WorldCoordinates
+calcCenter uMesh sMesh =
+    let
+        a =
+            TriangularMesh.vertex 0 uMesh
+
+        b =
+            TriangularMesh.vertex 1 uMesh
+
+        d =
+            TriangularMesh.vertex 3 uMesh
+
+        e =
+            TriangularMesh.vertex 3 sMesh
+
+        cx =
+            Point3d.xCoordinate (addVertices a b)
+
+        cy =
+            Point3d.yCoordinate (addVertices a d)
+
+        cz =
+            Point3d.zCoordinate (addVertices a e)
+    in
+    Point3d.xyz cx cy cz
 
 
 
@@ -318,7 +383,7 @@ type Msg
     | MouseUp
     | MouseMove (Quantity Float Pixels) (Quantity Float Pixels)
     | GotTexture String (Result WebGL.Texture.Error (Material.Texture Color.Color))
-    | FocusChange Float Float Float
+    | FocusChange (Point3d Meters WorldCoordinates)
     | RotateObject Int Char
     | Set2D
     | CheckZoom
@@ -420,8 +485,13 @@ update msg model =
             else
                 ( { model | cltSideTexture = Material.constant Color.blue }, Cmd.none )
 
-        FocusChange x y z ->
-            ( { model | focusAt = Point3d.centimeters x y z }, Cmd.none )
+        FocusChange point ->
+            ( { model
+                | focusAt =
+                    point
+              }
+            , Cmd.none
+            )
 
         RotateObject id axis ->
             if axis == 'X' || axis == 'x' then
