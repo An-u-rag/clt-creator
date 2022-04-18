@@ -51,7 +51,7 @@ import Task
 import TriangularMesh exposing (TriangularMesh, vertex)
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
-import Wrapper3D
+
 
 
 
@@ -116,10 +116,10 @@ textBox width height isHighlighted isSelectable chars =
     , rect width height
         |> outlined (solid 0.2)
             (if isHighlighted then
-                rgb 0 0 0
+                grey
 
              else
-                charcoal
+                grey
             )
     ]
         |> group
@@ -174,7 +174,10 @@ type alias CltPlank =
     , centerPoint : Point3d Meters WorldCoordinates
     }
 
-
+type alias SawBlade =
+    { radius : Float
+    , height : Float
+    }
 
 -- Main Model (State variable) type which is used to store current state values for the application.
 
@@ -194,6 +197,7 @@ type alias Model =
     , cltSideTexture : Material.Texture Color.Color
     , gridTexture : Material.Texture Color.Color
     , genCode : String
+    , mainSawblade : SawBlade
     }
 
 
@@ -289,6 +293,10 @@ init () =
       , cltSideTexture = Material.constant Color.black
       , gridTexture = Material.constant Color.black
       , genCode = "Your Code: "
+      , mainSawblade = 
+            { radius = 5
+              , height = 8
+            }
       }
     , Cmd.batch
         [ getViewportSize
@@ -514,8 +522,9 @@ update msg model =
 
         -- Default catch to make no change to model/state.
         NoOp ->
-            ( model, Cmd.none )
+            ( model, Cmd.none ) 
 
+       
 
 rotateClt : Model -> CltPlank -> Int -> Char -> CltPlank
 rotateClt model clt id axis =
@@ -847,11 +856,10 @@ view model =
                 |> Scene3d.rotateAround rotationAxisY model.cltMain.rotationAngleY
                 |> Scene3d.rotateAround rotationAxisZ model.cltMain.rotationAngleZ
 
-        camp3dEntities =
-            Wrapper3D.renderEntities
-                [ Wrapper3D.cube 20 (Material.color Color.blue)
-                    |> Wrapper3D.move3D ( 0, 0, 50 )
-                ]
+        sawBlade = 
+            Scene3d.cylinder
+                
+                
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
@@ -875,8 +883,7 @@ view model =
                     [ axisReference
                     , xyGrid
                     , cltPlank
-                    , Scene3d.group camp3dEntities
-                    ]
+                    ]                
                 }
             , createCollage collageWidth collageHeight <| myShapes model
             ]
