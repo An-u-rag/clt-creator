@@ -51,6 +51,7 @@ import Task
 import TriangularMesh exposing (TriangularMesh, vertex)
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
+import Wrapper3D
 
 
 
@@ -845,6 +846,12 @@ view model =
                 |> Scene3d.rotateAround rotationAxisX model.cltMain.rotationAngleX
                 |> Scene3d.rotateAround rotationAxisY model.cltMain.rotationAngleY
                 |> Scene3d.rotateAround rotationAxisZ model.cltMain.rotationAngleZ
+
+        camp3dEntities =
+            Wrapper3D.renderEntities
+                [ Wrapper3D.cube 20 (Material.color Color.blue)
+                    |> Wrapper3D.move3D ( 0, 0, 50 )
+                ]
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
@@ -868,6 +875,7 @@ view model =
                     [ axisReference
                     , xyGrid
                     , cltPlank
+                    , Scene3d.group camp3dEntities
                     ]
                 }
             , createCollage collageWidth collageHeight <| myShapes model

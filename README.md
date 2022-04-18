@@ -35,3 +35,4 @@ Commit 6:
 - Added Genration of Code string as a Model variable.
 - Abstracted CltPlank type from Model.
 - Added dynamic focus at midpoint of cltPlank. (supports rotations)
+- Manually imported elm-3d-camp Wrapper3D module.
