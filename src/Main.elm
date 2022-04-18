@@ -849,7 +849,7 @@ view model =
 
         camp3dEntities =
             Wrapper3D.renderEntities
-                [ Wrapper3D.cube 20 (Material.color Color.blue)
+                [ Wrapper3D.cube 40 (Material.color Color.blue)
                     |> Wrapper3D.move3D ( 0, 0, 50 )
                 ]
     in
