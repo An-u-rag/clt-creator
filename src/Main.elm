@@ -174,8 +174,11 @@ type alias CltPlank =
     , centerPoint : Point3d Meters WorldCoordinates
     }
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 2cf78645a5cf0cd386f5dc5c2b9006cc24c754d4
 -- Main Model (State variable) type which is used to store current state values for the application.
 
 
