@@ -36,3 +36,6 @@ Commit 6:
 - Abstracted CltPlank type from Model.
 - Added dynamic focus at midpoint of cltPlank. (supports rotations)
 - Manually imported elm-3d-camp Wrapper3D module.
+
+Commit 7:
+- Two sawblades spawned in the scene. 
