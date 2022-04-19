@@ -52,6 +52,8 @@ import TriangularMesh exposing (TriangularMesh, vertex)
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 import Wrapper3D
+import Point3d exposing (coordinates)
+import Dict 
 
 
 
@@ -125,6 +127,26 @@ textBox width height isHighlighted isSelectable chars =
         |> group
 
 
+
+-- To create Sawblade teeth
+
+spokes : Float -> Float -> Wrapper3D.Object WorldCoordinates
+spokes counter angle= 
+    if counter == 0
+    then Wrapper3D.group3D[]
+    else 
+      Wrapper3D.group3D [
+          Wrapper3D.polyCylinder [(-19.81,35.207),(-8.694,38.628),(-11.54,39.198),(-12.97,40.623),(-12.68,46.040),(-19.81,41.763),(-19.81,35.207)] 5 { generatedMeshes = Dict.empty, generatedShadows = Dict.empty }
+            |> Wrapper3D.metallic Color.darkGray 0.1
+            |> Wrapper3D.rotateY3D (degrees 90)
+            |> Wrapper3D.rotateX3D (degrees (angle*counter))
+            |> Wrapper3D.move3D (0, 0, 25)
+          ,
+          spokes (counter-1) angle
+          
+          
+          ]
+    
 
 -- Type to handle world coordinates in the 3d scene.
 
@@ -846,10 +868,31 @@ view model =
                 |> Scene3d.rotateAround rotationAxisY model.cltMain.rotationAngleY
                 |> Scene3d.rotateAround rotationAxisZ model.cltMain.rotationAngleZ
 
+        sawBlade = 
+            Wrapper3D.group3D 
+            [
+                Wrapper3D.cylinder 40 7 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
+                    |> Wrapper3D.move3D (25,0,-2)
+            ,   spokes 16 (360/16)
+                    |> Wrapper3D.rotateY3D (degrees 90)
+            ]
+
+
         camp3dEntities =
             Wrapper3D.renderEntities
-                [ Wrapper3D.cube 40 (Material.color Color.blue)
-                    |> Wrapper3D.move3D ( 0, 0, 50 )
+                [ sawBlade --right sawblade
+                    |> Wrapper3D.rotateY3D (degrees 90)
+                    |> Wrapper3D.rotateZ3D (degrees 45)
+                   -- |> Wrapper3D.rotateX3D (degrees 45)
+                    |> Wrapper3D.move3D (100, -250, 200)
+                    |> Wrapper3D.scale3D 0.3
+                , sawBlade --left sawblade
+                    |> Wrapper3D.rotateX3D (degrees 90)
+                    |> Wrapper3D.rotateY3D (degrees 45)
+                   -- |> Wrapper3D.rotateX3D (degrees 45)
+                    |> Wrapper3D.move3D (250, -300, 200)
+                    |> Wrapper3D.scale3D 0.3
+                    
                 ]
     in
     -- General structure for writing HTML in document type in elm.
