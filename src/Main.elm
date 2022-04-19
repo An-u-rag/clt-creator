@@ -68,15 +68,6 @@ collageHeight =
     128
 
 
-
--- Boolean to check whether animations are turned on
-
-
-isAnimating model =
-    False
-
-
-
 -- Shapes model to render 2D overlay using GraphicSVG
 
 
@@ -87,7 +78,7 @@ myShapes model =
     , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 105, 30 ) |> notifyTap (RotateObject 1 'Y')
     , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObject 1 'Z')
     , textBox 30 5 True False [ "Cutter" ] |> move ( 105, 0 ) |> notifyTap Set2D
-    , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 )   
+    , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 )  |> notifyTap AnimationToggle
     , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
     , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
     , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
@@ -203,6 +194,8 @@ type alias CltPlank =
 type alias Model =
     { window : Window
     , elapsedTime : Duration
+    , isAnimating : Bool
+    , rotationAngle : Angle
     , azimuth : Angle
     , elevation : Angle
     , zoom : Float
@@ -293,6 +286,8 @@ init () =
     -- The other two commands are used to make a request to the github repositories which hold the textures.
     ( { window = { cw = collageWidth, ch = collageHeight, sw = 0, sh = 0 }
       , elapsedTime = Quantity.zero
+      , isAnimating = False
+      , rotationAngle = Quantity.zero
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
       , zoom = 300
@@ -406,6 +401,7 @@ type Msg
     | GotTexture String (Result WebGL.Texture.Error (Material.Texture Color.Color))
     | FocusChange (Point3d Meters WorldCoordinates)
     | RotateObject Int Char
+    | AnimationToggle
     | Set2D
     | CheckZoom
     | Zoom MouseWheelEvent
@@ -424,6 +420,18 @@ update msg model =
         Tick duration ->
             ( { model | elapsedTime = Quantity.plus duration model.elapsedTime }, Cmd.none )
 
+        AnimationToggle -> 
+            if model.isAnimating then
+                ({ model | isAnimating = False }, Cmd.none)
+            else
+                ({ model | isAnimating = True }, Cmd.none)
+        
+        -- Rotation object: Sawblade
+        -- Rotation axis: For top sawblade-> about its own axis (parallel to X axis)
+        --                For left sawblade-> about its own axis (parallel to Y axis)
+        -- Rotation angle: 360 degrees per second (1 full rotation will be complete in 1 second)
+            
+                
         -- Window Resize is setting the viewport dimensions in the model when there is a successful retrieval from Javascrip and elm runtime.
         WindowResize mWH ->
             case mWH of
@@ -580,8 +588,8 @@ decodeMouseMove =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.isOrbiting then
-        -- If we're currently orbiting, listen for mouse moves and mouse button
+    if model.isOrbiting && model.isAnimating then
+        -- If we're currently orbiting and animating, listen for mouse moves and mouse button
         -- up events (to stop orbiting); in a real app we'd probably also want
         -- to listen for page visibility changes to stop orbiting if the user
         -- switches to a different tab or something
@@ -591,12 +599,31 @@ subscriptions model =
             , Browser.Events.onAnimationFrameDelta (Duration.milliseconds >> Tick)
             ]
 
+    else if (not model.isOrbiting) && model.isAnimating then
+        -- If we're currently orbiting, listen for mouse moves and mouse button
+        -- up events (to stop orbiting); in a real app we'd probably also want
+        -- to listen for page visibility changes to stop orbiting if the user
+        -- switches to a different tab or something
+        Sub.batch
+            [ Browser.Events.onMouseDown (Decode.succeed MouseDown)
+            , Browser.Events.onAnimationFrameDelta (Duration.milliseconds >> Tick)
+            ]
+    
+    else if model.isOrbiting && (not model.isAnimating) then
+        -- If we're currently orbiting, listen for mouse moves and mouse button
+        -- up events (to stop orbiting); in a real app we'd probably also want
+        -- to listen for page visibility changes to stop orbiting if the user
+        -- switches to a different tab or something
+        Sub.batch
+            [ Browser.Events.onMouseMove decodeMouseMove
+            , Browser.Events.onMouseUp (Decode.succeed MouseUp)
+            ]
+
     else
         -- If we're not currently orbiting, just listen for mouse down events
         -- to start orbiting and animation frames
         Sub.batch
             [ Browser.Events.onMouseDown (Decode.succeed MouseDown)
-            , Browser.Events.onAnimationFrameDelta (Duration.milliseconds >> Tick)
             ]
 
 
@@ -879,19 +906,30 @@ view model =
                     |> Wrapper3D.rotateY3D (degrees 90)
                     |> Wrapper3D.move3D ( -25, 0, 2 )
                 ]
+        rotationRate = 
+            Angle.degrees 360 |> Quantity.per Duration.second
+
+        updatedAngle = 
+            if model.isAnimating then 
+                rotationRate |> Quantity.for model.elapsedTime 
+            else
+                Quantity.zero
+
 
         camp3dEntities =
             Wrapper3D.renderEntities
                 [ sawBlade
-                    --right sawblade
+                    --top sawblade
                     |> Wrapper3D.scale3D 0.3
                     |> Wrapper3D.rotateY3D (degrees 90)
-                    |> Wrapper3D.move3D ( 100 * Quantity.unwrap xMidpoint, 0, 0 )
+                    |> Wrapper3D.rotateX3D (Angle.inDegrees updatedAngle)
+                    |> Wrapper3D.move3D ( 100 * Quantity.unwrap xMidpoint, 80, 0 )
                 , sawBlade
                     --left sawblade
                     |> Wrapper3D.scale3D 0.3
                     |> Wrapper3D.rotateX3D (degrees 90)
-                    |> Wrapper3D.move3D ( 0, 100 * Quantity.unwrap yMidpoint, 0 )
+                    |> Wrapper3D.rotateY3D (Angle.inDegrees updatedAngle)
+                    |> Wrapper3D.move3D ( -70, 100 * Quantity.unwrap yMidpoint, 0 )
                 ]
     in
     -- General structure for writing HTML in document type in elm.
