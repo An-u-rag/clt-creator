@@ -88,7 +88,7 @@ myShapes model =
     , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 105, 30 ) |> notifyTap (RotateObject 1 'Y')
     , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObject 1 'Z')
     , textBox 30 5 True False [ "Cutter" ] |> move ( 105, 0 ) |> notifyTap Set2D
-    , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 )
+    , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 )   
     , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
     , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
     , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
@@ -143,8 +143,7 @@ spokes counter angle=
             |> Wrapper3D.move3D (0, 0, 25)
           ,
           spokes (counter-1) angle
-          
-          
+                   
           ]
     
 
@@ -560,8 +559,6 @@ rotateClt model clt id axis =
 
     else
         model.cltMain
-
-
 
 -- A decoder written to extract the current mouse coordinates and return them in pixels to initiate a state change
 
