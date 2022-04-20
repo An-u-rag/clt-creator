@@ -68,6 +68,7 @@ collageHeight =
     128
 
 
+
 -- Shapes model to render 2D overlay using GraphicSVG
 
 
@@ -78,7 +79,7 @@ myShapes model =
     , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 105, 30 ) |> notifyTap (RotateObject 1 'Y')
     , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObject 1 'Z')
     , textBox 30 5 True False [ "Cutter" ] |> move ( 105, 0 ) |> notifyTap Set2D
-    , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 )  |> notifyTap AnimationToggle
+    , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 ) |> notifyTap AnimationToggle
     , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
     , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
     , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
@@ -420,18 +421,17 @@ update msg model =
         Tick duration ->
             ( { model | elapsedTime = Quantity.plus duration model.elapsedTime }, Cmd.none )
 
-        AnimationToggle -> 
+        AnimationToggle ->
             if model.isAnimating then
-                ({ model | isAnimating = False }, Cmd.none)
+                ( { model | isAnimating = False }, Cmd.none )
+
             else
-                ({ model | isAnimating = True }, Cmd.none)
-        
+                ( { model | isAnimating = True }, Cmd.none )
+
         -- Rotation object: Sawblade
         -- Rotation axis: For top sawblade-> about its own axis (parallel to X axis)
         --                For left sawblade-> about its own axis (parallel to Y axis)
         -- Rotation angle: 360 degrees per second (1 full rotation will be complete in 1 second)
-            
-                
         -- Window Resize is setting the viewport dimensions in the model when there is a successful retrieval from Javascrip and elm runtime.
         WindowResize mWH ->
             case mWH of
@@ -569,6 +569,8 @@ rotateClt model clt id axis =
     else
         model.cltMain
 
+
+
 -- A decoder written to extract the current mouse coordinates and return them in pixels to initiate a state change
 
 
@@ -599,7 +601,7 @@ subscriptions model =
             , Browser.Events.onAnimationFrameDelta (Duration.milliseconds >> Tick)
             ]
 
-    else if (not model.isOrbiting) && model.isAnimating then
+    else if not model.isOrbiting && model.isAnimating then
         -- If we're currently orbiting, listen for mouse moves and mouse button
         -- up events (to stop orbiting); in a real app we'd probably also want
         -- to listen for page visibility changes to stop orbiting if the user
@@ -608,8 +610,8 @@ subscriptions model =
             [ Browser.Events.onMouseDown (Decode.succeed MouseDown)
             , Browser.Events.onAnimationFrameDelta (Duration.milliseconds >> Tick)
             ]
-    
-    else if model.isOrbiting && (not model.isAnimating) then
+
+    else if model.isOrbiting && not model.isAnimating then
         -- If we're currently orbiting, listen for mouse moves and mouse button
         -- up events (to stop orbiting); in a real app we'd probably also want
         -- to listen for page visibility changes to stop orbiting if the user
@@ -871,6 +873,21 @@ view model =
                 (Point3d.centimeters 256 -256 -0.25)
                 (Point3d.centimeters -256 -256 -0.25)
 
+        xMidpoint =
+            Point3d.xCoordinate model.cltMain.centerPoint
+
+        p1 =
+            Point3d.xyz xMidpoint (Length.meters 0) zMidpoint
+
+        yMidpoint =
+            Point3d.yCoordinate model.cltMain.centerPoint
+
+        p2 =
+            Point3d.xyz (Length.meters 0) yMidpoint zMidpoint
+
+        zMidpoint =
+            Point3d.zCoordinate model.cltMain.centerPoint
+
         rotationAxisX =
             Axis3d.through Point3d.origin Direction3d.x
 
@@ -879,9 +896,6 @@ view model =
 
         rotationAxisZ =
             Axis3d.through Point3d.origin Direction3d.z
-
-        animatedRotationY =
-            Angle.degrees (Angle.inDegrees model.cltMain.rotationAngleY * Duration.inSeconds model.elapsedTime)
 
         -- CLT plank
         cltPlank =
@@ -893,12 +907,6 @@ view model =
                 |> Scene3d.rotateAround rotationAxisY model.cltMain.rotationAngleY
                 |> Scene3d.rotateAround rotationAxisZ model.cltMain.rotationAngleZ
 
-        xMidpoint =
-            Point3d.xCoordinate model.cltMain.centerPoint
-
-        yMidpoint =
-            Point3d.yCoordinate model.cltMain.centerPoint
-
         sawBlade =
             Wrapper3D.group3D
                 [ Wrapper3D.cylinder 40 7 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
@@ -906,15 +914,16 @@ view model =
                     |> Wrapper3D.rotateY3D (degrees 90)
                     |> Wrapper3D.move3D ( -25, 0, 2 )
                 ]
-        rotationRate = 
+
+        rotationRate =
             Angle.degrees 360 |> Quantity.per Duration.second
 
-        updatedAngle = 
-            if model.isAnimating then 
-                rotationRate |> Quantity.for model.elapsedTime 
+        updatedAngle =
+            if model.isAnimating then
+                rotationRate |> Quantity.for model.elapsedTime
+
             else
                 Quantity.zero
-
 
         camp3dEntities =
             Wrapper3D.renderEntities
