@@ -40,3 +40,5 @@ Commit 6:
 Commit 7:
 - Two sawblades spawned in the scene. 
 - Added animation for the sawblades.
+- Added Frame from CLT plank
+- Now the CLT plank rotates around its own axis rather than global axis.

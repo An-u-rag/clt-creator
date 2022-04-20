@@ -31,6 +31,7 @@ import Cylinder3d exposing (Cylinder3d)
 import Dict
 import Direction3d
 import Duration exposing (Duration)
+import Frame3d exposing (Frame3d)
 import GraphicSVG exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -146,6 +147,10 @@ type WorldCoordinates
     = WorldCoordinates
 
 
+type LocalCoordinates
+    = LocalCoordinates
+
+
 
 -- MouseWheel data for zooming
 
@@ -176,6 +181,10 @@ type alias VertexData =
     }
 
 
+type alias Frame =
+    Frame3d Meters WorldCoordinates { defines : LocalCoordinates }
+
+
 
 -- Clt Model to hold all values related to that clt entity.
 
@@ -185,6 +194,7 @@ type alias CltPlank =
     , rotationAngleY : Angle
     , rotationAngleZ : Angle
     , centerPoint : Point3d Meters WorldCoordinates
+    , cltFrame : Frame
     }
 
 
@@ -273,6 +283,9 @@ init () =
 
         stripMesh =
             Mesh.texturedTriangles <| rawStripMesh
+
+        centerPoint =
+            calcCenter upperMesh rawStripMesh
     in
     -- In the init functio nwe store the previously created mesh and other values since creation of a mesh is an expensive operation
     --   and changing the mesh frequently causes optimization issues.
@@ -298,7 +311,8 @@ init () =
             { rotationAngleX = Angle.degrees 0
             , rotationAngleY = Angle.degrees 0
             , rotationAngleZ = Angle.degrees 0
-            , centerPoint = calcCenter upperMesh rawStripMesh
+            , centerPoint = centerPoint
+            , cltFrame = Frame3d.atPoint centerPoint
             }
       , cltMesh1 = mesh
       , cltMesh2 = stripMesh
@@ -551,19 +565,16 @@ rotateClt model clt id axis =
     if axis == 'X' || axis == 'x' then
         { clt
             | rotationAngleX = Quantity.plus model.cltMain.rotationAngleX (Angle.degrees 90)
-            , centerPoint = Point3d.rotateAround Axis3d.x (Angle.degrees 90) clt.centerPoint
         }
 
     else if axis == 'Y' || axis == 'y' then
         { clt
             | rotationAngleY = Quantity.plus model.cltMain.rotationAngleY (Angle.degrees 90)
-            , centerPoint = Point3d.rotateAround Axis3d.y (Angle.degrees 90) clt.centerPoint
         }
 
     else if axis == 'Z' || axis == 'z' then
         { clt
             | rotationAngleZ = Quantity.plus model.cltMain.rotationAngleZ (Angle.degrees 90)
-            , centerPoint = Point3d.rotateAround Axis3d.z (Angle.degrees 90) clt.centerPoint
         }
 
     else
@@ -868,34 +879,28 @@ view model =
         -- 2D XY plane Grid
         xyGrid =
             Scene3d.quad (Material.texturedColor model.gridTexture)
-                (Point3d.centimeters -256 256 -0.25)
-                (Point3d.centimeters 256 256 -0.25)
-                (Point3d.centimeters 256 -256 -0.25)
-                (Point3d.centimeters -256 -256 -0.25)
+                (Point3d.centimeters -256 256 -25)
+                (Point3d.centimeters 256 256 -25)
+                (Point3d.centimeters 256 -256 -25)
+                (Point3d.centimeters -256 -256 -25)
 
         xMidpoint =
             Point3d.xCoordinate model.cltMain.centerPoint
 
-        p1 =
-            Point3d.xyz xMidpoint (Length.meters 0) zMidpoint
-
         yMidpoint =
             Point3d.yCoordinate model.cltMain.centerPoint
-
-        p2 =
-            Point3d.xyz (Length.meters 0) yMidpoint zMidpoint
 
         zMidpoint =
             Point3d.zCoordinate model.cltMain.centerPoint
 
         rotationAxisX =
-            Axis3d.through Point3d.origin Direction3d.x
+            Frame3d.xAxis model.cltMain.cltFrame
 
         rotationAxisY =
-            Axis3d.through Point3d.origin Direction3d.y
+            Frame3d.yAxis model.cltMain.cltFrame
 
         rotationAxisZ =
-            Axis3d.through Point3d.origin Direction3d.z
+            Frame3d.zAxis model.cltMain.cltFrame
 
         -- CLT plank
         cltPlank =
@@ -932,7 +937,7 @@ view model =
                     |> Wrapper3D.scale3D 0.3
                     |> Wrapper3D.rotateY3D (degrees 90)
                     |> Wrapper3D.rotateX3D (Angle.inDegrees updatedAngle)
-                    |> Wrapper3D.move3D ( 100 * Quantity.unwrap xMidpoint, 80, 0 )
+                    |> Wrapper3D.move3D ( 100 * Quantity.unwrap xMidpoint, 130, 0 )
                 , sawBlade
                     --left sawblade
                     |> Wrapper3D.scale3D 0.3
