@@ -92,23 +92,23 @@ myShapes model =
 
 
 textBox width height isHighlighted isSelectable chars =
-    [ rect width height |> filled darkBlue |> makeTransparent 0.8
+    [ rect width height |> filled white |> makeTransparent 0.8
     , if isSelectable then
         GraphicSVG.text (String.join "" <| List.reverse chars)
             |> centered
             |> GraphicSVG.size 3
             -- |> selectable
-            |> filled GraphicSVG.white
+            |> filled GraphicSVG.darkBlue
             |> clip (rect width height |> ghost)
 
       else
         GraphicSVG.text (String.join "" <| List.reverse chars)
             |> centered
             |> GraphicSVG.size 3
-            |> filled GraphicSVG.white
+            |> filled GraphicSVG.darkBlue
             |> clip (rect width height |> ghost)
     , rect width height
-        |> outlined (solid 0.6 )
+        |> outlined (solid 0.3 )
             (if isHighlighted then
                 darkBlue 
 
