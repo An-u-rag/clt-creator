@@ -69,6 +69,23 @@ collageHeight =
     128
 
 
+slider : Char -> Float -> Float -> Float -> Html Msg
+slider axis position min halfMax =
+    div []
+        [ Html.text (String.fromChar axis)
+        , input
+            [ type_ "range"
+            , Html.Attributes.min (String.fromFloat min)
+            , Html.Attributes.max <|
+                String.fromFloat (halfMax * 2)
+            , value (String.fromFloat position)
+            , onInput (UpdateSawBladeSlider axis)
+            ]
+            []
+        , Html.text (String.fromFloat position)
+        ]
+
+
 
 -- Shapes model to render 2D overlay using GraphicSVG
 
@@ -76,6 +93,8 @@ collageHeight =
 myShapes model =
     [ -- textBox 30 35 True False [] |> move (105, 25) |> makeTransparent 0.8 --main, biggest box
       textBox 30 5 True False [ "OPERATIONS" ] |> move ( 105, 40 )
+    , html 200 20 (slider 'X' model.sawBladeTop.x 0 ((*) 100 <| .x <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -10 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
+    , html 200 20 (slider 'Y' model.sawBladeLeft.y 0 ((*) 100 <| .y <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -20 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
     , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 105, 35 ) |> notifyTap (RotateObject 1 'X')
     , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 105, 30 ) |> notifyTap (RotateObject 1 'Y')
     , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObject 1 'Z')
@@ -130,7 +149,7 @@ spokes counter angle =
 
     else
         Wrapper3D.group3D
-            [ Wrapper3D.polyCylinder [ ( -19.81, 35.207 ), ( -8.694, 38.628 ), ( -11.54, 39.198 ), ( -12.97, 40.623 ), ( -12.68, 46.04 ), ( -19.81, 41.763 ), ( -19.81, 35.207 ) ] 5 { generatedMeshes = Dict.empty, generatedShadows = Dict.empty }
+            [ Wrapper3D.polyCylinder [ ( -19.81, 35.207 ), ( -8.694, 38.628 ), ( -11.54, 39.198 ), ( -12.97, 40.623 ), ( -12.68, 46.04 ), ( -19.81, 41.763 ), ( -19.81, 35.207 ) ] 1 { generatedMeshes = Dict.empty, generatedShadows = Dict.empty }
                 |> Wrapper3D.metallic Color.darkGray 0.1
                 |> Wrapper3D.rotateY3D (degrees 90)
                 |> Wrapper3D.rotateX3D (degrees (angle * counter))
@@ -198,6 +217,13 @@ type alias CltPlank =
     }
 
 
+type alias SawBladeData =
+    { x : Float
+    , y : Float
+    , z : Float
+    }
+
+
 
 -- Main Model (State variable) type which is used to store current state values for the application.
 
@@ -212,6 +238,9 @@ type alias Model =
     , zoom : Float
     , focusAt : Point3d Meters WorldCoordinates
     , isOrbiting : Bool
+    , isOrbitBlock : Bool
+    , sawBladeTop : SawBladeData
+    , sawBladeLeft : SawBladeData
     , cltMain : CltPlank
     , cltMesh1 : Mesh.Unlit WorldCoordinates
     , cltMesh2 : Mesh.Unlit WorldCoordinates
@@ -307,6 +336,17 @@ init () =
       , zoom = 300
       , focusAt = Point3d.centimeters 0 0 0
       , isOrbiting = False
+      , isOrbitBlock = False
+      , sawBladeTop =
+            { x = .x <| Point3d.toRecord Length.inCentimeters centerPoint
+            , y = 120
+            , z = .z <| Point3d.toRecord Length.inCentimeters centerPoint
+            }
+      , sawBladeLeft =
+            { x = -100
+            , y = .y <| Point3d.toRecord Length.inCentimeters centerPoint
+            , z = .z <| Point3d.toRecord Length.inCentimeters centerPoint
+            }
       , cltMain =
             { rotationAngleX = Angle.degrees 0
             , rotationAngleY = Angle.degrees 0
@@ -413,6 +453,7 @@ type Msg
     | MouseDown
     | MouseUp
     | MouseMove (Quantity Float Pixels) (Quantity Float Pixels)
+    | BlockOrbiting Bool
     | GotTexture String (Result WebGL.Texture.Error (Material.Texture Color.Color))
     | FocusChange (Point3d Meters WorldCoordinates)
     | RotateObject Int Char
@@ -420,6 +461,7 @@ type Msg
     | Set2D
     | CheckZoom
     | Zoom MouseWheelEvent
+    | UpdateSawBladeSlider Char String
     | NoOp
 
 
@@ -472,7 +514,11 @@ update msg model =
 
         -- Mouse events which are used to set the boolean value for isOrbiting in the model based on whetehr the user is clicking and dragging.
         MouseDown ->
-            ( { model | isOrbiting = True }, Cmd.none )
+            if model.isOrbitBlock then
+                ( { model | isOrbiting = False }, Cmd.none )
+
+            else
+                ( { model | isOrbiting = True }, Cmd.none )
 
         MouseUp ->
             ( { model | isOrbiting = False }, Cmd.none )
@@ -505,6 +551,9 @@ update msg model =
 
             else
                 ( model, Cmd.none )
+
+        BlockOrbiting b ->
+            ( { model | isOrbitBlock = b }, Cmd.none )
 
         -- Setting the retrieved texture values into the model.
         GotTexture textureType (Ok texture) ->
@@ -555,9 +604,30 @@ update msg model =
             else
                 ( model, Cmd.none )
 
+        UpdateSawBladeSlider axis pos ->
+            case String.toFloat pos of
+                Just p ->
+                    if axis == 'X' then
+                        ( { model | sawBladeTop = updatePos model.sawBladeTop p axis }, Cmd.none )
+
+                    else
+                        ( { model | sawBladeLeft = updatePos model.sawBladeLeft p axis }, Cmd.none )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
         -- Default catch to make no change to model/state.
         NoOp ->
             ( model, Cmd.none )
+
+
+updatePos : SawBladeData -> Float -> Char -> SawBladeData
+updatePos sb pos axis =
+    if axis == 'X' then
+        { sb | x = pos }
+
+    else
+        { sb | y = pos }
 
 
 rotateClt : Model -> CltPlank -> Int -> Char -> CltPlank
@@ -902,6 +972,37 @@ view model =
         rotationAxisZ =
             Frame3d.zAxis model.cltMain.cltFrame
 
+        xAxisCltCylinder =
+            Scene3d.cylinder xAxisMaterial <|
+                Cylinder3d.along (Frame3d.xAxis model.cltMain.cltFrame)
+                    { start = Length.centimeters 0
+                    , end = Length.centimeters 200
+                    , radius = Length.centimeters 0.3
+                    }
+
+        yAxisCltCylinder =
+            Scene3d.cylinder yAxisMaterial <|
+                Cylinder3d.along (Frame3d.yAxis model.cltMain.cltFrame)
+                    { start = Length.centimeters 0
+                    , end = Length.centimeters 200
+                    , radius = Length.centimeters 0.3
+                    }
+
+        zAxisCltCylinder =
+            Scene3d.cylinder zAxisMaterial <|
+                Cylinder3d.along (Frame3d.zAxis model.cltMain.cltFrame)
+                    { start = Length.centimeters 0
+                    , end = Length.centimeters 200
+                    , radius = Length.centimeters 0.3
+                    }
+
+        cltFrameRef =
+            Scene3d.group
+                [ xAxisCltCylinder
+                , yAxisCltCylinder
+                , zAxisCltCylinder
+                ]
+
         -- CLT plank
         cltPlank =
             Scene3d.group
@@ -912,12 +1013,18 @@ view model =
                 |> Scene3d.rotateAround rotationAxisY model.cltMain.rotationAngleY
                 |> Scene3d.rotateAround rotationAxisZ model.cltMain.rotationAngleZ
 
+        guideLine =
+            Wrapper3D.cylinder 0.5 1000 (Material.metal { baseColor = Color.lightRed, roughness = 0.1 })
+                |> Wrapper3D.rotateY3D (degrees 90)
+                |> Wrapper3D.move3D ( 500, 0, 0 )
+
         sawBlade =
             Wrapper3D.group3D
-                [ Wrapper3D.cylinder 40 7 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
+                [ Wrapper3D.cylinder 40 0.3 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
                 , spokes 16 (360 / 16)
                     |> Wrapper3D.rotateY3D (degrees 90)
                     |> Wrapper3D.move3D ( -25, 0, 2 )
+                , guideLine
                 ]
 
         rotationRate =
@@ -936,14 +1043,17 @@ view model =
                     --top sawblade
                     |> Wrapper3D.scale3D 0.3
                     |> Wrapper3D.rotateY3D (degrees 90)
+                    |> Wrapper3D.rotateX3D (degrees 270)
                     |> Wrapper3D.rotateX3D (Angle.inDegrees updatedAngle)
-                    |> Wrapper3D.move3D ( 100 * Quantity.unwrap xMidpoint, 130, 0 )
+                    -- |> Wrapper3D.move3D ( 100 * Quantity.unwrap xMidpoint, 130, 0 )
+                    |> Wrapper3D.move3D ( model.sawBladeTop.x, model.sawBladeTop.y, model.sawBladeTop.z )
                 , sawBlade
                     --left sawblade
                     |> Wrapper3D.scale3D 0.3
                     |> Wrapper3D.rotateX3D (degrees 90)
                     |> Wrapper3D.rotateY3D (Angle.inDegrees updatedAngle)
-                    |> Wrapper3D.move3D ( -70, 100 * Quantity.unwrap yMidpoint, 0 )
+                    -- |> Wrapper3D.move3D ( -70, 100 * Quantity.unwrap yMidpoint, 0 )
+                    |> Wrapper3D.move3D ( model.sawBladeLeft.x, model.sawBladeLeft.y, model.sawBladeLeft.z )
                 ]
     in
     -- General structure for writing HTML in document type in elm.

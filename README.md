@@ -42,3 +42,5 @@ Commit 7:
 - Added animation for the sawblades.
 - Added Frame from CLT plank
 - Now the CLT plank rotates around its own axis rather than global axis.
+- SawBlade corresponds to sliders for X and Y axis translations necessary for cutting.
+- Guidelines added for sawblades. 
