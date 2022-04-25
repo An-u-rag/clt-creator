@@ -98,10 +98,10 @@ myShapes model =
     , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 105, 35 ) |> notifyTap (RotateObject 1 'X')
     , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 105, 30 ) |> notifyTap (RotateObject 1 'Y')
     , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObject 1 'Z')
-    , textBox 30 5 True False [ "Cutter" ] |> move ( 105, 0 ) |> notifyTap Set2D
-    , textBox 30 5 True False [ "Play" ] |> move ( 105, 20 ) |> notifyTap AnimationToggle
-    , textBox 30 5 True False [ "Focus" ] |> move ( 105, 15 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
-    , textBox 30 5 True False [ "Reset" ] |> move ( 105, 10 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
+    , textBox 30 5 True False [ "Cutter" ] |> move ( 105, 5 ) |> notifyTap Set2D
+    , textBox 30 5 True False [ "Play" ] |> move ( 105, 0 ) |> notifyTap AnimationToggle
+    , textBox 30 5 True False [ "Focus" ] |> move ( 105, 20 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
+    , textBox 30 5 True False [ "Reset" ] |> move ( 105, 15 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
     , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
     ]
 
@@ -117,22 +117,22 @@ textBox width height isHighlighted isSelectable chars =
             |> centered
             |> GraphicSVG.size 3
             -- |> selectable
-            |> filled GraphicSVG.black
+            |> filled GraphicSVG.darkBlue
             |> clip (rect width height |> ghost)
 
       else
         GraphicSVG.text (String.join "" <| List.reverse chars)
             |> centered
             |> GraphicSVG.size 3
-            |> filled GraphicSVG.black
+            |> filled GraphicSVG.darkBlue
             |> clip (rect width height |> ghost)
     , rect width height
-        |> outlined (solid 0.2)
+        |> outlined (solid 0.3 )
             (if isHighlighted then
-                grey
+                darkBlue 
 
              else
-                grey
+                darkBlue
             )
     ]
         |> group
@@ -431,7 +431,7 @@ cltSideTextureURL =
 
 gridTextureURL : String
 gridTextureURL =
-    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/GraphPaperTextures/GraphPaper2048-512x512-grey.png"
+    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/GraphPaperTextures/GraphPaper2048-512x512-grey-blue.png"
 
 
 
@@ -1073,7 +1073,7 @@ view model =
                 , exposure = Scene3d.exposureValue 12
                 , toneMapping = Scene3d.noToneMapping
                 , whiteBalance = Light.daylight
-                , background = Scene3d.backgroundColor Color.grey
+                , background = Scene3d.backgroundColor Color.lightGray
                 , entities =
                     [ axisReference
                     , xyGrid
