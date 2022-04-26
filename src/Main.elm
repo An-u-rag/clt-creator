@@ -57,6 +57,7 @@ import Wrapper3D
 
 
 
+
 -- INIT
 -- Collage dimensions will be used to generate various overlays later using Scalable vector graphics.
 
@@ -91,18 +92,19 @@ slider axis position min halfMax =
 
 
 myShapes model =
-    [ -- textBox 30 35 True False [] |> move (105, 25) |> makeTransparent 0.8 --main, biggest box
-      textBox 30 5 True False [ "OPERATIONS" ] |> move ( 105, 40 )
+    [ textBox2 35 60 True False [] |> move (100, 25) |> makeTransparent 0.8 --main, biggest box
+    , textBox 30 5 True False [ "OPERATIONS" ] |> move ( 100, 50 ) 
     , html 200 20 (slider 'X' model.sawBladeTop.x 0 ((*) 100 <| .x <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -10 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
     , html 200 20 (slider 'Y' model.sawBladeLeft.y 0 ((*) 100 <| .y <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -20 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
-    , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 105, 35 ) |> notifyTap (RotateObject 1 'X')
-    , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 105, 30 ) |> notifyTap (RotateObject 1 'Y')
-    , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 105, 25 ) |> notifyTap (RotateObject 1 'Z')
-    , textBox 30 5 True False [ "Cutter" ] |> move ( 105, 5 ) |> notifyTap Set2D
-    , textBox 30 5 True False [ "Play" ] |> move ( 105, 0 ) |> notifyTap AnimationToggle
-    , textBox 30 5 True False [ "Focus" ] |> move ( 105, 20 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
-    , textBox 30 5 True False [ "Reset" ] |> move ( 105, 15 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
+    , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 100, 42 ) |> notifyTap (RotateObject 1 'X')
+    , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 100, 36 ) |> notifyTap (RotateObject 1 'Y')
+    , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 100, 30 ) |> notifyTap (RotateObject 1 'Z')
+    , textBox 30 5 True False [ "Cutter" ] |> move ( 100, 8 ) |> notifyTap Set2D
+    , textBox 30 5 True False [ "Play" ] |> move ( 100, 2 ) |> notifyTap AnimationToggle
+    , textBox 30 5 True False [ "Focus" ] |> move ( 100, 24 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
+    , textBox 30 5 True False [ "Reset" ] |> move ( 100, 18 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
     , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
+    
     ]
 
 
@@ -112,6 +114,37 @@ myShapes model =
 
 textBox width height isHighlighted isSelectable chars =
     [ rect width height |> filled white |> makeTransparent 0.8
+    , if isSelectable then
+        GraphicSVG.text (String.join "" <| List.reverse chars)
+            |> centered
+            |> customFont "monospace" 
+            |> GraphicSVG.size 2.5
+            -- |> selectable
+            |> filled GraphicSVG.darkBlue
+            |> clip (rect width height |> ghost)
+
+      else
+        GraphicSVG.text (String.join "" <| List.reverse chars)
+            |> centered
+            |> customFont "monospace" 
+            |> GraphicSVG.size 2.5
+            |> filled GraphicSVG.darkBlue
+            |> clip (rect width height |> ghost)
+    , rect width height
+        |> outlined (solid 0.3 )
+            (if isHighlighted then
+                darkBlue 
+
+             else
+                darkBlue
+            )
+    ]
+        |> group
+
+-- blueprint box
+
+textBox2 width height isHighlighted isSelectable chars =
+    [ rect width height |> filled darkBlue |> makeTransparent 0.8
     , if isSelectable then
         GraphicSVG.text (String.join "" <| List.reverse chars)
             |> centered
@@ -127,7 +160,7 @@ textBox width height isHighlighted isSelectable chars =
             |> filled GraphicSVG.darkBlue
             |> clip (rect width height |> ghost)
     , rect width height
-        |> outlined (solid 0.3 )
+        |> outlined (solid 1.5 )
             (if isHighlighted then
                 darkBlue 
 
@@ -136,8 +169,6 @@ textBox width height isHighlighted isSelectable chars =
             )
     ]
         |> group
-
-
 
 -- To create Sawblade teeth
 
@@ -1020,10 +1051,10 @@ view model =
 
         sawBlade =
             Wrapper3D.group3D
-                [ Wrapper3D.cylinder 40 0.3 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
+                [ Wrapper3D.cylinder 40 0.4 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
                 , spokes 16 (360 / 16)
                     |> Wrapper3D.rotateY3D (degrees 90)
-                    |> Wrapper3D.move3D ( -25, 0, 2 )
+                    |> Wrapper3D.move3D ( -25, 0, 0 )
                 , guideLine
                 ]
 
@@ -1055,6 +1086,7 @@ view model =
                     -- |> Wrapper3D.move3D ( -70, 100 * Quantity.unwrap yMidpoint, 0 )
                     |> Wrapper3D.move3D ( model.sawBladeLeft.x, model.sawBladeLeft.y, model.sawBladeLeft.z )
                 ]
+       
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
@@ -1082,6 +1114,7 @@ view model =
                     ]
                 }
             , createCollage collageWidth collageHeight <| myShapes model
+            
             ]
         ]
     }

@@ -21,7 +21,8 @@
             "ianmackenzie/elm-3d-scene": "1.0.1",
             "ianmackenzie/elm-geometry": "3.9.1",
             "ianmackenzie/elm-triangular-mesh": "1.1.0",
-            "ianmackenzie/elm-units": "2.9.0"
+            "ianmackenzie/elm-units": "2.9.0",
+            "mdgriffith/elm-ui": "1.1.8"
         },
         "indirect": {
             "elm/parser": "1.1.0",
