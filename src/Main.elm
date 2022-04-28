@@ -57,7 +57,6 @@ import Wrapper3D
 
 
 
-
 -- INIT
 -- Collage dimensions will be used to generate various overlays later using Scalable vector graphics.
 
@@ -92,8 +91,8 @@ slider axis position min halfMax =
 
 
 myShapes model =
-    [ textBox2 35 60 True False [] |> move (100, 25) |> makeTransparent 0.8 --main, biggest box
-    , textBox 30 5 True False [ "OPERATIONS" ] |> move ( 100, 50 ) 
+    [ textBox2 35 60 True False [] |> move ( 100, 25 ) |> makeTransparent 0.8 --main, biggest box
+    , textBox 30 5 True False [ "OPERATIONS" ] |> move ( 100, 50 )
     , html 200 20 (slider 'X' model.sawBladeTop.x 0 ((*) 100 <| .x <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -10 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
     , html 200 20 (slider 'Y' model.sawBladeLeft.y 0 ((*) 100 <| .y <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -20 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
     , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 100, 42 ) |> notifyTap (RotateObject 1 'X')
@@ -104,7 +103,6 @@ myShapes model =
     , textBox 30 5 True False [ "Focus" ] |> move ( 100, 24 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
     , textBox 30 5 True False [ "Reset" ] |> move ( 100, 18 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
     , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
-    
     ]
 
 
@@ -117,7 +115,7 @@ textBox width height isHighlighted isSelectable chars =
     , if isSelectable then
         GraphicSVG.text (String.join "" <| List.reverse chars)
             |> centered
-            |> customFont "monospace" 
+            |> customFont "monospace"
             |> GraphicSVG.size 2.5
             -- |> selectable
             |> filled GraphicSVG.darkBlue
@@ -126,14 +124,14 @@ textBox width height isHighlighted isSelectable chars =
       else
         GraphicSVG.text (String.join "" <| List.reverse chars)
             |> centered
-            |> customFont "monospace" 
+            |> customFont "monospace"
             |> GraphicSVG.size 2.5
             |> filled GraphicSVG.darkBlue
             |> clip (rect width height |> ghost)
     , rect width height
-        |> outlined (solid 0.3 )
+        |> outlined (solid 0.3)
             (if isHighlighted then
-                darkBlue 
+                darkBlue
 
              else
                 darkBlue
@@ -141,7 +139,10 @@ textBox width height isHighlighted isSelectable chars =
     ]
         |> group
 
+
+
 -- blueprint box
+
 
 textBox2 width height isHighlighted isSelectable chars =
     [ rect width height |> filled darkBlue |> makeTransparent 0.8
@@ -160,15 +161,17 @@ textBox2 width height isHighlighted isSelectable chars =
             |> filled GraphicSVG.darkBlue
             |> clip (rect width height |> ghost)
     , rect width height
-        |> outlined (solid 1.5 )
+        |> outlined (solid 1.5)
             (if isHighlighted then
-                darkBlue 
+                darkBlue
 
              else
                 darkBlue
             )
     ]
         |> group
+
+
 
 -- To create Sawblade teeth
 
@@ -1055,6 +1058,7 @@ view model =
                 , spokes 16 (360 / 16)
                     |> Wrapper3D.rotateY3D (degrees 90)
                     |> Wrapper3D.move3D ( -25, 0, 0 )
+                    |> Wrapper3D.rotateZ3D (Angle.inDegrees updatedAngle)
                 , guideLine
                 ]
 
@@ -1075,18 +1079,15 @@ view model =
                     |> Wrapper3D.scale3D 0.3
                     |> Wrapper3D.rotateY3D (degrees 90)
                     |> Wrapper3D.rotateX3D (degrees 270)
-                    |> Wrapper3D.rotateX3D (Angle.inDegrees updatedAngle)
                     -- |> Wrapper3D.move3D ( 100 * Quantity.unwrap xMidpoint, 130, 0 )
                     |> Wrapper3D.move3D ( model.sawBladeTop.x, model.sawBladeTop.y, model.sawBladeTop.z )
                 , sawBlade
                     --left sawblade
                     |> Wrapper3D.scale3D 0.3
                     |> Wrapper3D.rotateX3D (degrees 90)
-                    |> Wrapper3D.rotateY3D (Angle.inDegrees updatedAngle)
                     -- |> Wrapper3D.move3D ( -70, 100 * Quantity.unwrap yMidpoint, 0 )
                     |> Wrapper3D.move3D ( model.sawBladeLeft.x, model.sawBladeLeft.y, model.sawBladeLeft.z )
                 ]
-       
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
@@ -1114,7 +1115,6 @@ view model =
                     ]
                 }
             , createCollage collageWidth collageHeight <| myShapes model
-            
             ]
         ]
     }
