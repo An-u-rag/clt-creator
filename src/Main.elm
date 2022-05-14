@@ -26,6 +26,7 @@ import Browser
 import Browser.Dom exposing (Viewport, getViewport)
 import Browser.Events
 import Camera3d exposing (Camera3d, viewpoint)
+import CltPlank exposing (..)
 import Color exposing (Color, black, blue, lightOrange)
 import Cylinder3d exposing (Cylinder3d)
 import Dict
@@ -51,6 +52,7 @@ import Svg
 import Svg.Attributes as SA
 import Task
 import TriangularMesh exposing (TriangularMesh, vertex)
+import Vector3d
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 import Wrapper3D
@@ -98,8 +100,9 @@ myShapes model =
     , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 100, 42 ) |> notifyTap (RotateObject 1 'X')
     , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 100, 36 ) |> notifyTap (RotateObject 1 'Y')
     , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 100, 30 ) |> notifyTap (RotateObject 1 'Z')
-    , textBox 30 5 True False [ "Cutter" ] |> move ( 100, 8 ) |> notifyTap Set2D
-    , textBox 30 5 True False [ "Play" ] |> move ( 100, 2 ) |> notifyTap AnimationToggle
+    , textBox 30 5 True False [ "Cutter" ] |> move ( 100, 12 ) |> notifyTap Set2D
+    , textBox 30 5 True False [ "Play" ] |> move ( 100, 6 ) |> notifyTap AnimationToggle
+    , textBox 30 5 True False [ "Cut" ] |> move ( 100, 0 ) |> notifyTap Cut
     , textBox 30 5 True False [ "Focus" ] |> move ( 100, 24 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
     , textBox 30 5 True False [ "Reset" ] |> move ( 100, 18 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
     , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
@@ -193,18 +196,6 @@ spokes counter angle =
 
 
 
--- Type to handle world coordinates in the 3d scene.
-
-
-type WorldCoordinates
-    = WorldCoordinates
-
-
-type LocalCoordinates
-    = LocalCoordinates
-
-
-
 -- MouseWheel data for zooming
 
 
@@ -225,29 +216,6 @@ type alias Window =
     , ch : Float
     , sw : Int
     , sh : Int
-    }
-
-
-type alias VertexData =
-    { position : Point3d.Point3d Meters WorldCoordinates
-    , uv : ( Float, Float )
-    }
-
-
-type alias Frame =
-    Frame3d Meters WorldCoordinates { defines : LocalCoordinates }
-
-
-
--- Clt Model to hold all values related to that clt entity.
-
-
-type alias CltPlank =
-    { rotationAngleX : Angle
-    , rotationAngleY : Angle
-    , rotationAngleZ : Angle
-    , centerPoint : Point3d Meters WorldCoordinates
-    , cltFrame : Frame
     }
 
 
@@ -275,11 +243,9 @@ type alias Model =
     , isOrbitBlock : Bool
     , sawBladeTop : SawBladeData
     , sawBladeLeft : SawBladeData
+    , isCut : Bool
     , cltMain : CltPlank
-    , cltMesh1 : Mesh.Unlit WorldCoordinates
-    , cltMesh2 : Mesh.Unlit WorldCoordinates
-    , cltTopTexture : Material.Texture Color.Color
-    , cltSideTexture : Material.Texture Color.Color
+    , cltList : List CltPlank
     , gridTexture : Material.Texture Color.Color
     , genCode : String
     }
@@ -293,62 +259,23 @@ type alias Model =
 init : () -> ( Model, Cmd Msg )
 init () =
     let
-        -- Combined mesh with upper + lower rectangular meshes and a Strip mesh for the sides.
-        -- The mesh is currently set to default clt plank dimensions to ensure uniformity.
-        -- Variable Plank Mesh function will be added as a feature after the base functionality.
-        -- The combined mesh is made up of two triangular meshes of indexed and strip respectively.
-        mesh =
-            Mesh.texturedTriangles <|
-                TriangularMesh.combine [ upperMesh, lowerMesh ]
+        width =
+            30
 
-        upperMesh =
-            TriangularMesh.indexed
-                (Array.fromList
-                    [ { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.centimeters 152 0 4, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.centimeters 152 30.5 4, uv = ( 1.0, 1.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 30.5 4, uv = ( 0.0, 1.0 ) } -- 3
-                    , { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) }
-                    ]
-                )
-                [ ( 0, 1, 2 )
-                , ( 2, 3, 0 )
-                ]
+        length =
+            152
 
-        lowerMesh =
-            TriangularMesh.indexed
-                (Array.fromList
-                    [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) } -- 0
-                    , { position = Point3d.centimeters 152 0 0, uv = ( 1.0, 0.0 ) } -- 1
-                    , { position = Point3d.centimeters 152 30 0, uv = ( 1.0, 1.0 ) } -- 2
-                    , { position = Point3d.centimeters 0 30 0, uv = ( 0.0, 1.0 ) } -- 3
-                    , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) }
-                    ]
-                )
-                [ ( 0, 1, 2 )
-                , ( 2, 3, 0 )
-                ]
+        height =
+            4
 
-        rawStripMesh =
-            TriangularMesh.strip
-                [ { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) } -- 0
-                , { position = Point3d.centimeters 152 0 4, uv = ( 1.0, 0.0 ) } -- 1
-                , { position = Point3d.centimeters 152 30 4, uv = ( 0.0, 0.0 ) } -- 2
-                , { position = Point3d.centimeters 0 30 4, uv = ( 1.0, 0.0 ) } -- 3
-                , { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) }
-                ]
-                [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) } -- 0
-                , { position = Point3d.centimeters 152 0 0, uv = ( 1.0, 1.0 ) } -- 1
-                , { position = Point3d.centimeters 152 30 0, uv = ( 0.0, 1.0 ) } -- 2
-                , { position = Point3d.centimeters 0 30 0, uv = ( 1.0, 1.0 ) } -- 3
-                , { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 1.0 ) }
-                ]
+        indexedMesh =
+            meshV width length height
 
         stripMesh =
-            Mesh.texturedTriangles <| rawStripMesh
+            stripMeshV width length height
 
         centerPoint =
-            calcCenter upperMesh rawStripMesh
+            calcCenter (upperMeshV width length height) (rawStripMeshV width length height)
     in
     -- In the init functio nwe store the previously created mesh and other values since creation of a mesh is an expensive operation
     --   and changing the mesh frequently causes optimization issues.
@@ -381,17 +308,24 @@ init () =
             , y = .y <| Point3d.toRecord Length.inCentimeters centerPoint
             , z = .z <| Point3d.toRecord Length.inCentimeters centerPoint
             }
+      , isCut = False
       , cltMain =
-            { rotationAngleX = Angle.degrees 0
+            { width = width
+            , length = length
+            , height = height
+            , offsetX = 0
+            , offsetY = 0
+            , rotationAngleX = Angle.degrees 0
             , rotationAngleY = Angle.degrees 0
             , rotationAngleZ = Angle.degrees 0
             , centerPoint = centerPoint
             , cltFrame = Frame3d.atPoint centerPoint
+            , indexedMesh = indexedMesh
+            , stripMesh = stripMesh
+            , cltTopTexture = Material.constant Color.black
+            , cltSideTexture = Material.constant Color.black
             }
-      , cltMesh1 = mesh
-      , cltMesh2 = stripMesh
-      , cltTopTexture = Material.constant Color.black
-      , cltSideTexture = Material.constant Color.black
+      , cltList = []
       , gridTexture = Material.constant Color.black
       , genCode = "Your Code: "
       }
@@ -404,49 +338,6 @@ init () =
         , Task.attempt (GotTexture "grid") (Material.loadWith Material.trilinearFiltering gridTextureURL)
         ]
     )
-
-
-addVertices : Maybe VertexData -> Maybe VertexData -> Point3d Meters WorldCoordinates
-addVertices a b =
-    let
-        ea =
-            Maybe.withDefault
-                { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) }
-                a
-
-        eb =
-            Maybe.withDefault
-                { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) }
-                b
-    in
-    Point3d.midpoint ea.position eb.position
-
-
-calcCenter : TriangularMesh VertexData -> TriangularMesh VertexData -> Point3d Meters WorldCoordinates
-calcCenter uMesh sMesh =
-    let
-        a =
-            TriangularMesh.vertex 0 uMesh
-
-        b =
-            TriangularMesh.vertex 1 uMesh
-
-        d =
-            TriangularMesh.vertex 3 uMesh
-
-        e =
-            TriangularMesh.vertex 3 sMesh
-
-        cx =
-            Point3d.xCoordinate (addVertices a b)
-
-        cy =
-            Point3d.yCoordinate (addVertices a d)
-
-        cz =
-            Point3d.zCoordinate (addVertices a e)
-    in
-    Point3d.xyz cx cy cz
 
 
 
@@ -492,6 +383,7 @@ type Msg
     | FocusChange (Point3d Meters WorldCoordinates)
     | RotateObject Int Char
     | AnimationToggle
+    | Cut
     | Set2D
     | CheckZoom
     | Zoom MouseWheelEvent
@@ -593,28 +485,36 @@ update msg model =
         GotTexture textureType (Ok texture) ->
             if textureType == "top" then
                 -- Successfully loaded the texture
-                ( { model | cltTopTexture = texture }, Cmd.none )
+                ( { model | cltMain = updateClt model.cltMain "TopTexture" texture }, Cmd.none )
 
             else if textureType == "grid" then
                 ( { model | gridTexture = texture }, Cmd.none )
 
             else
-                ( { model | cltSideTexture = texture }, Cmd.none )
+                ( { model | cltMain = updateClt model.cltMain "SideTexture" texture }, Cmd.none )
 
         GotTexture textureType (Err error) ->
             if textureType == "top" then
-                ( { model | cltTopTexture = Material.constant Color.blue }, Cmd.none )
+                ( { model | cltMain = updateClt model.cltMain "TopTexture" (Material.constant Color.blue) }, Cmd.none )
 
             else if textureType == "grid" then
                 ( { model | gridTexture = Material.constant Color.blue }, Cmd.none )
 
             else
-                ( { model | cltSideTexture = Material.constant Color.blue }, Cmd.none )
+                ( { model | cltMain = updateClt model.cltMain "SideTexture" (Material.constant Color.blue) }, Cmd.none )
 
         FocusChange point ->
             ( { model
                 | focusAt =
                     point
+              }
+            , Cmd.none
+            )
+
+        Cut ->
+            ( { model
+                | isCut = True
+                , cltList = updateCltList model.cltList 2 model model.cltMain
               }
             , Cmd.none
             )
@@ -683,6 +583,109 @@ rotateClt model clt id axis =
 
     else
         model.cltMain
+
+
+updateClt : CltPlank -> String -> Material.Texture Color.Color -> CltPlank
+updateClt clt attrib value =
+    case attrib of
+        "TopTexture" ->
+            { clt | cltTopTexture = value }
+
+        "SideTexture" ->
+            { clt | cltSideTexture = value }
+
+        _ ->
+            clt
+
+
+
+-- Need to set the positions, rotations(maybe inherit from main?) and dimensions
+-- for the new planks and spawn them (add them to cltList)
+{-
+
+   CltPlank =
+   { rotationAngleX : Angle
+   , rotationAngleY : Angle
+   , rotationAngleZ : Angle
+   , centerPoint : Point3d Meters WorldCoordinates
+   , cltFrame : Frame
+   , indexedMesh : Mesh.Unlit WorldCoordinates (change)
+   , stripMesh : Mesh.Unlit WorldCoordinates (change)
+   , cltTopTexture : Material.Texture Color.Color (change later)
+   , cltSideTexture : Material.Texture Color.Color (change later)
+   }
+
+   if there are 2 cuts: We need to spawn 4 cltplanks
+   if there is 1 cut: We only need to spawn 2 cltplanks
+
+   -- create a singleton for the cut planks and append them to cltList
+
+   For coordinates and dimensions of cut planks
+   -- need x pos of top sawblade
+   -- need y pos of left sawbl9ade
+
+-}
+
+
+updateCltList : List CltPlank -> Int -> Model -> CltPlank -> List CltPlank
+updateCltList cltList ncuts model parentCltPlank =
+    let
+        plank1 =
+            List.singleton <|
+                createPlank model.sawBladeLeft.y model.sawBladeTop.x 0 0 model
+
+        plank2 =
+            List.singleton <|
+                createPlank model.sawBladeLeft.y (parentCltPlank.length - model.sawBladeTop.x) model.sawBladeTop.x 0 model
+
+        plank3 =
+            List.singleton <|
+                createPlank (parentCltPlank.width - model.sawBladeLeft.y) (parentCltPlank.length - model.sawBladeTop.x) model.sawBladeTop.x model.sawBladeLeft.y model
+
+        plank4 =
+            List.singleton <|
+                createPlank (parentCltPlank.width - model.sawBladeLeft.y) model.sawBladeTop.x 0 model.sawBladeLeft.y model
+
+        planks =
+            List.concat [ plank1, plank2, plank3, plank4 ]
+    in
+    if ncuts == 2 then
+        List.append cltList <| planks
+
+    else if ncuts == 1 then
+        cltList
+
+    else
+        cltList
+
+
+createPlank : Float -> Float -> Float -> Float -> Model -> CltPlank
+createPlank width length offsetX offsetY model =
+    let
+        parentCltPlank =
+            model.cltMain
+
+        height =
+            parentCltPlank.height
+
+        centerPoint =
+            calcCenter (upperMeshV width length height) (rawStripMeshV width length height)
+    in
+    { width = width
+    , length = length
+    , height = height
+    , offsetX = offsetX
+    , offsetY = offsetY
+    , rotationAngleX = parentCltPlank.rotationAngleX
+    , rotationAngleY = parentCltPlank.rotationAngleY
+    , rotationAngleZ = parentCltPlank.rotationAngleZ
+    , centerPoint = centerPoint
+    , cltFrame = Frame3d.atPoint centerPoint
+    , indexedMesh = meshV width length height
+    , stripMesh = stripMeshV width length height
+    , cltTopTexture = parentCltPlank.cltTopTexture
+    , cltSideTexture = parentCltPlank.cltSideTexture
+    }
 
 
 
@@ -887,6 +890,25 @@ convertCoords gModel ( x, y ) =
     )
 
 
+getClt : CltPlank -> Scene3d.Entity WorldCoordinates
+getClt clt =
+    let
+        ox =
+            clt.offsetX / 100
+
+        oy =
+            clt.offsetY / 100
+    in
+    Scene3d.group
+        [ Scene3d.mesh (Material.texturedColor clt.cltTopTexture) clt.indexedMesh
+        , Scene3d.mesh (Material.texturedColor clt.cltSideTexture) clt.stripMesh
+        ]
+        |> Scene3d.translateBy (Vector3d.meters ox oy 0)
+        |> Scene3d.rotateAround Axis3d.x clt.rotationAngleX
+        |> Scene3d.rotateAround Axis3d.y clt.rotationAngleY
+        |> Scene3d.rotateAround Axis3d.z clt.rotationAngleZ
+
+
 
 -- This is the main view module responsible for displaying the elements on the HTML browser with the help of JavaScript.
 -- Here it is slightly modified to output a Browser.Document (which includes Html) type instead of Html type because out elm app type is a Browser.document.
@@ -1040,12 +1062,15 @@ view model =
         -- CLT plank
         cltPlank =
             Scene3d.group
-                [ Scene3d.mesh (Material.texturedColor model.cltTopTexture) model.cltMesh1
-                , Scene3d.mesh (Material.texturedColor model.cltSideTexture) model.cltMesh2
+                [ Scene3d.mesh (Material.texturedColor model.cltMain.cltTopTexture) model.cltMain.indexedMesh
+                , Scene3d.mesh (Material.texturedColor model.cltMain.cltSideTexture) model.cltMain.stripMesh
                 ]
                 |> Scene3d.rotateAround rotationAxisX model.cltMain.rotationAngleX
                 |> Scene3d.rotateAround rotationAxisY model.cltMain.rotationAngleY
                 |> Scene3d.rotateAround rotationAxisZ model.cltMain.rotationAngleZ
+
+        cltPlankList =
+            List.map getClt model.cltList
 
         guideLine =
             Wrapper3D.cylinder 0.5 1000 (Material.metal { baseColor = Color.lightRed, roughness = 0.1 })
@@ -1110,7 +1135,11 @@ view model =
                 , entities =
                     [ axisReference
                     , xyGrid
-                    , cltPlank
+                    , if model.isCut then
+                        Scene3d.group cltPlankList
+
+                      else
+                        cltPlank
                     , Scene3d.group camp3dEntities
                     ]
                 }

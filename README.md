@@ -44,3 +44,13 @@ Commit 7:
 - Now the CLT plank rotates around its own axis rather than global axis.
 - SawBlade corresponds to sliders for X and Y axis translations necessary for cutting.
 - Guidelines added for sawblades. 
+
+Commit 8:
+- Refactoring of code and abstraction of CltPlank into another file.
+- Cutting mechanism for the cltMain plank is done for 2 cuts simultaeneously. 
+- The cut produces 4 smaller planks and makes the cltMain disappear. 
+- The cut also correctly offsets the smaller planks to their original positions according to parent plank(cltmain).
+- Centerpoint and Frame are also correctly allocated to the smalelr planks.
+- Need to implement the mechanism for just 1 cut. (Horizontally or Vertically)
+- Need to implement selectability and focus for the smaller planks and overall individualization from CltList. (How?)
+- Need more UI in cutter mode. (Using GraphicSVG elements)
