@@ -82,6 +82,24 @@ type alias CltPlank =
     }
 
 
+defaultPlank =
+    { width = 0
+    , length = 0
+    , height = 0
+    , offsetX = 0
+    , offsetY = 0
+    , rotationAngleX = Angle.degrees 0
+    , rotationAngleY = Angle.degrees 0
+    , rotationAngleZ = Angle.degrees 0
+    , centerPoint = Point3d.centimeters 0 0 0
+    , cltFrame = Frame3d.atPoint (Point3d.centimeters 0 0 0)
+    , indexedMesh = mesh
+    , stripMesh = stripMesh
+    , cltTopTexture = Material.constant Color.black
+    , cltSideTexture = Material.constant Color.black
+    }
+
+
 
 -- Combined mesh with upper + lower rectangular meshes and a Strip mesh for the sides (with variable widths and lengths)
 -- The combined mesh is made up of two triangular meshes of indexed and strip respectively.

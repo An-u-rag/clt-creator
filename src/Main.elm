@@ -88,6 +88,36 @@ slider axis position min halfMax =
         ]
 
 
+cutterUI model =
+    group
+        [ group
+            [ textBox 8 8 True False [ "2D" ] |> move ( 0, 0 )
+            ]
+        , group
+            (if model.numCuts == 2 then
+                [ textBox 8 8 True False [ "I" ] |> move ( -15, -15 ) |> notifyTap (SelectPlank 0)
+                , textBox 8 8 True False [ "II" ] |> move ( 15, -15 ) |> notifyTap (SelectPlank 1)
+                , textBox 8 8 True False [ "III" ] |> move ( 15, 15 ) |> notifyTap (SelectPlank 2)
+                , textBox 8 8 True False [ "IV" ] |> move ( -15, 15 ) |> notifyTap (SelectPlank 3)
+                ]
+
+             else if model.numCuts == 1 && model.cutDir == 'X' then
+                [ textBox 8 8 True False [ "I" ] |> move ( -15, 0 )
+                , textBox 8 8 True False [ "II" ] |> move ( 15, 0 )
+                ]
+
+             else if model.numCuts == 1 && model.cutDir == 'Y' then
+                [ textBox 8 8 True False [ "I" ] |> move ( 0, -15 )
+                , textBox 8 8 True False [ "II" ] |> move ( 0, 15 )
+                ]
+
+             else
+                [ textBox 8 8 True False [ "Hi" ] |> move ( 15, 15 )
+                ]
+            )
+        ]
+
+
 
 -- Shapes model to render 2D overlay using GraphicSVG
 
@@ -102,10 +132,15 @@ myShapes model =
     , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 100, 30 ) |> notifyTap (RotateObject 1 'Z')
     , textBox 30 5 True False [ "Cutter" ] |> move ( 100, 12 ) |> notifyTap Set2D
     , textBox 30 5 True False [ "Play" ] |> move ( 100, 6 ) |> notifyTap AnimationToggle
-    , textBox 30 5 True False [ "Cut" ] |> move ( 100, 0 ) |> notifyTap Cut
+    , textBox 30 5 True False [ "Cut" ] |> move ( 100, 0 ) |> notifyTap (Cut 2 ' ')
     , textBox 30 5 True False [ "Focus" ] |> move ( 100, 24 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
     , textBox 30 5 True False [ "Reset" ] |> move ( 100, 18 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
     , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
+    , if model.elevation == Angle.degrees 90 && model.focusAt /= Point3d.meters 0 0 0 then
+        cutterUI model
+
+      else
+        textBox 0 0 True False [ "" ] |> move ( 0, 0 )
     ]
 
 
@@ -244,6 +279,8 @@ type alias Model =
     , sawBladeTop : SawBladeData
     , sawBladeLeft : SawBladeData
     , isCut : Bool
+    , cutDir : Char
+    , numCuts : Int
     , cltMain : CltPlank
     , cltList : List CltPlank
     , gridTexture : Material.Texture Color.Color
@@ -309,6 +346,8 @@ init () =
             , z = .z <| Point3d.toRecord Length.inCentimeters centerPoint
             }
       , isCut = False
+      , cutDir = ' '
+      , numCuts = 0
       , cltMain =
             { width = width
             , length = length
@@ -383,8 +422,9 @@ type Msg
     | FocusChange (Point3d Meters WorldCoordinates)
     | RotateObject Int Char
     | AnimationToggle
-    | Cut
+    | Cut Int Char
     | Set2D
+    | SelectPlank Int
     | CheckZoom
     | Zoom MouseWheelEvent
     | UpdateSawBladeSlider Char String
@@ -511,10 +551,12 @@ update msg model =
             , Cmd.none
             )
 
-        Cut ->
+        Cut numCuts cutDir ->
             ( { model
                 | isCut = True
-                , cltList = updateCltList model.cltList 2 model model.cltMain
+                , numCuts = numCuts
+                , cutDir = cutDir
+                , cltList = updateCltList model.cltList numCuts model model.cltMain
               }
             , Cmd.none
             )
@@ -524,6 +566,9 @@ update msg model =
 
         Set2D ->
             ( { model | azimuth = Angle.degrees 270, elevation = Angle.degrees 90 }, Cmd.none )
+
+        SelectPlank id ->
+            ( { model | focusAt = .centerPoint <| Maybe.withDefault defaultPlank <| Array.get id <| Array.fromList model.cltList }, Cmd.none )
 
         CheckZoom ->
             ( model, Cmd.none )
@@ -668,8 +713,14 @@ createPlank width length offsetX offsetY model =
         height =
             parentCltPlank.height
 
+        center =
+            Point3d.toRecord Length.inCentimeters <| calcCenter (upperMeshV width length height) (rawStripMeshV width length height)
+
         centerPoint =
-            calcCenter (upperMeshV width length height) (rawStripMeshV width length height)
+            Point3d.xyz
+                (Length.centimeters (center.x + offsetX))
+                (Length.centimeters (center.y + offsetY))
+                (Length.centimeters center.z)
     in
     { width = width
     , length = length
@@ -1144,6 +1195,7 @@ view model =
                     ]
                 }
             , createCollage collageWidth collageHeight <| myShapes model
+            , h4 [] [ Html.text <| Debug.toString model.cltList ]
             ]
         ]
     }
