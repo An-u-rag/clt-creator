@@ -56,6 +56,7 @@ import Vector3d
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 import Wrapper3D
+import Color exposing (darkGreen)
 
 
 
@@ -91,28 +92,28 @@ slider axis position min halfMax =
 cutterUI model =
     group
         [ group
-            [ textBox 8 8 True False [ "2D" ] |> move ( 0, 0 )
+            [ textBox 0 0 False False [ "2D" ] |> move ( 0, 0 )
             ]
         , group
             (if model.numCuts == 2 then
-                [ textBox 8 8 True False [ "I" ] |> move ( -15, -15 ) |> notifyTap (SelectPlank 0)
-                , textBox 8 8 True False [ "II" ] |> move ( 15, -15 ) |> notifyTap (SelectPlank 1)
-                , textBox 8 8 True False [ "III" ] |> move ( 15, 15 ) |> notifyTap (SelectPlank 2)
-                , textBox 8 8 True False [ "IV" ] |> move ( -15, 15 ) |> notifyTap (SelectPlank 3)
+                [ textBox 8 8 (model.selectedId==0 ) False [ "I" ] |> move ( -55, -15 ) |> notifyTap (SelectPlank 0)
+                , textBox 8 8 (model.selectedId==1 ) False [ "II" ] |> move ( 50, -15 ) |> notifyTap (SelectPlank 1)
+                , textBox 8 8 (model.selectedId==2 ) False [ "III" ] |> move ( 50, 10 ) |> notifyTap (SelectPlank 2)
+                , textBox 8 8 (model.selectedId==3 ) False [ "IV" ] |> move ( -55, 10 ) |> notifyTap (SelectPlank 3)
                 ]
 
              else if model.numCuts == 1 && model.cutDir == 'X' then
-                [ textBox 8 8 True False [ "I" ] |> move ( -15, 0 )
-                , textBox 8 8 True False [ "II" ] |> move ( 15, 0 )
+                [ textBox 8 8 (model.selectedId==0 ) False [ "I" ] |> move ( -15, 0 )
+                , textBox 8 8 (model.selectedId==1 ) False [ "II" ] |> move ( 15, 0 )
                 ]
 
              else if model.numCuts == 1 && model.cutDir == 'Y' then
-                [ textBox 8 8 True False [ "I" ] |> move ( 0, -15 )
-                , textBox 8 8 True False [ "II" ] |> move ( 0, 15 )
+                [ textBox 8 8 (model.selectedId==0 ) False [ "I" ] |> move ( 0, -15 )
+                , textBox 8 8 (model.selectedId==1) False [ "II" ] |> move ( 0, 15 )
                 ]
 
              else
-                [ textBox 8 8 True False [ "Hi" ] |> move ( 15, 15 )
+                [ textBox 0 0 (model.selectedId==0 ) False [ "" ] |> move ( 15, 15 )
                 ]
             )
         ]
@@ -123,19 +124,19 @@ cutterUI model =
 
 
 myShapes model =
-    [ textBox2 35 60 True False [] |> move ( 100, 25 ) |> makeTransparent 0.8 --main, biggest box
-    , textBox 30 5 True False [ "OPERATIONS" ] |> move ( 100, 50 )
+    [ textBox2 35 60 False False [] |> move ( 100, 25 ) |> makeTransparent 0.8 --main, biggest box
+    , textBox 30 5 False False [ "OPERATIONS" ] |> move ( 100, 50 )
     , html 200 20 (slider 'X' model.sawBladeTop.x 0 ((*) 100 <| .x <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -10 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
     , html 200 20 (slider 'Y' model.sawBladeLeft.y 0 ((*) 100 <| .y <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -20 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
-    , textBox 30 5 True False [ "Rotate along X axis" ] |> move ( 100, 42 ) |> notifyTap (RotateObject 1 'X')
-    , textBox 30 5 True False [ "Rotate along Y axis" ] |> move ( 100, 36 ) |> notifyTap (RotateObject 1 'Y')
-    , textBox 30 5 True False [ "Rotate along Z axis" ] |> move ( 100, 30 ) |> notifyTap (RotateObject 1 'Z')
-    , textBox 30 5 True False [ "Cutter" ] |> move ( 100, 12 ) |> notifyTap Set2D
-    , textBox 30 5 True False [ "Play" ] |> move ( 100, 6 ) |> notifyTap AnimationToggle
-    , textBox 30 5 True False [ "Cut" ] |> move ( 100, 0 ) |> notifyTap (Cut 2 ' ')
-    , textBox 30 5 True False [ "Focus" ] |> move ( 100, 24 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
-    , textBox 30 5 True False [ "Reset" ] |> move ( 100, 18 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
-    , textBox 40 20 True True [ model.genCode ] |> move ( -100, -40 )
+    , textBox 30 5 False False [ "Rotate along X axis" ] |> move ( 100, 42 ) |> notifyTap (RotateObject model.selectedId 'X')
+    , textBox 30 5 False False [ "Rotate along Y axis" ] |> move ( 100, 36 ) |> notifyTap (RotateObject model.selectedId 'Y')
+    , textBox 30 5 False False [ "Rotate along Z axis" ] |> move ( 100, 30 ) |> notifyTap (RotateObject model.selectedId 'Z')
+    , textBox 30 5 False False [ "Cutter" ] |> move ( 100, 12 ) |> notifyTap Set2D
+    , textBox 30 5 False False [ "Play" ] |> move ( 100, 6 ) |> notifyTap AnimationToggle
+    , textBox 30 5 False False [ "Cut" ] |> move ( 100, 0 ) |> notifyTap (Cut 2 ' ')
+    , textBox 30 5 False False [ "Focus" ] |> move ( 100, 24 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
+    , textBox 30 5 False False [ "Reset" ] |> move ( 100, 18 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
+    , textBox 40 20 False True [ model.genCode ] |> move ( -100, -40 )
     , if model.elevation == Angle.degrees 90 && model.focusAt /= Point3d.meters 0 0 0 then
         cutterUI model
 
@@ -149,7 +150,15 @@ myShapes model =
 
 
 textBox width height isHighlighted isSelectable chars =
-    [ rect width height |> filled white |> makeTransparent 0.8
+    [ rect width height 
+    |> filled 
+        (if isHighlighted then
+            green
+
+        else
+            white
+        )
+    |> makeTransparent 0.8
     , if isSelectable then
         GraphicSVG.text (String.join "" <| List.reverse chars)
             |> centered
@@ -167,13 +176,8 @@ textBox width height isHighlighted isSelectable chars =
             |> filled GraphicSVG.darkBlue
             |> clip (rect width height |> ghost)
     , rect width height
-        |> outlined (solid 0.3)
-            (if isHighlighted then
-                darkBlue
+        |> outlined (solid 0.3) darkBlue
 
-             else
-                darkBlue
-            )
     ]
         |> group
 
@@ -221,7 +225,7 @@ spokes counter angle =
 
     else
         Wrapper3D.group3D
-            [ Wrapper3D.polyCylinder [ ( -19.81, 35.207 ), ( -8.694, 38.628 ), ( -11.54, 39.198 ), ( -12.97, 40.623 ), ( -12.68, 46.04 ), ( -19.81, 41.763 ), ( -19.81, 35.207 ) ] 1 { generatedMeshes = Dict.empty, generatedShadows = Dict.empty }
+            [ Wrapper3D.polyCylinder [ ( -19.81, 35.207 ), ( -8.694, 38.628 ), ( -11.54, 39.198 ), ( -12.97, 40.623 ), ( -12.68, 46.04 ), ( -19.81, 41.763 ), ( -19.81, 35.207 ) ] 4 { generatedMeshes = Dict.empty, generatedShadows = Dict.empty }
                 |> Wrapper3D.metallic Color.darkGray 0.1
                 |> Wrapper3D.rotateY3D (degrees 90)
                 |> Wrapper3D.rotateX3D (degrees (angle * counter))
@@ -274,6 +278,7 @@ type alias Model =
     , elevation : Angle
     , zoom : Float
     , focusAt : Point3d Meters WorldCoordinates
+    , selectedId: Int
     , isOrbiting : Bool
     , isOrbitBlock : Bool
     , sawBladeTop : SawBladeData
@@ -297,13 +302,13 @@ init : () -> ( Model, Cmd Msg )
 init () =
     let
         width =
-            30
+            365
 
         length =
-            152
+            1825
 
         height =
-            4
+            30
 
         indexedMesh =
             meshV width length height
@@ -331,17 +336,18 @@ init () =
       , rotationAngle = Quantity.zero
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
-      , zoom = 300
+      , zoom = 4000
       , focusAt = Point3d.centimeters 0 0 0
+      , selectedId = -1
       , isOrbiting = False
       , isOrbitBlock = False
       , sawBladeTop =
             { x = .x <| Point3d.toRecord Length.inCentimeters centerPoint
-            , y = 120
+            , y = (+) 300 <| (*) 2 <| .y <| Point3d.toRecord Length.inCentimeters centerPoint
             , z = .z <| Point3d.toRecord Length.inCentimeters centerPoint
             }
       , sawBladeLeft =
-            { x = -100
+            { x = (-) 1500 <| (*) 2 <| .x <| Point3d.toRecord Length.inCentimeters centerPoint
             , y = .y <| Point3d.toRecord Length.inCentimeters centerPoint
             , z = .z <| Point3d.toRecord Length.inCentimeters centerPoint
             }
@@ -449,6 +455,9 @@ update msg model =
 
             else
                 ( { model | isAnimating = True }, Cmd.none )
+    
+
+
 
         -- Rotation object: Sawblade
         -- Rotation axis: For top sawblade-> about its own axis (parallel to X axis)
@@ -562,22 +571,41 @@ update msg model =
             )
 
         RotateObject id axis ->
-            ( { model | cltMain = rotateClt model model.cltMain id axis }, Cmd.none )
+            let
+                selectablePlank = 
+                    if id == -1 then 
+                        model.cltMain                                                
+                    else
+                        Maybe.withDefault defaultPlank <| Array.get id <| Array.fromList model.cltList
+              {-  cltList = 
+                    if id == -1 then 
+                        model.cltList                                               
+                    else
+                        selectablePlank -}
+            in        
+                ( { model | cltMain = rotateClt model selectablePlank axis }, Cmd.none )
 
         Set2D ->
             ( { model | azimuth = Angle.degrees 270, elevation = Angle.degrees 90 }, Cmd.none )
 
         SelectPlank id ->
-            ( { model | focusAt = .centerPoint <| Maybe.withDefault defaultPlank <| Array.get id <| Array.fromList model.cltList }, Cmd.none )
+            let
+                selectablePlank = 
+                    Maybe.withDefault defaultPlank <| Array.get id <| Array.fromList model.cltList
+
+            in  
+            ( { model | selectedId = id, focusAt = selectablePlank.centerPoint}, Cmd.none )
+
+        
 
         CheckZoom ->
             ( model, Cmd.none )
 
         Zoom e ->
-            if e.deltaY > 0 && model.zoom < 600 then
+            if e.deltaY > 0 && model.zoom < 6000 then
                 ( { model | zoom = model.zoom + 50 }, Cmd.none )
 
-            else if e.deltaY < 0 && model.zoom > 50 then
+            else if e.deltaY < 0 && model.zoom > 2000 then
                 ( { model | zoom = model.zoom - 50 }, Cmd.none )
 
             else
@@ -609,21 +637,21 @@ updatePos sb pos axis =
         { sb | y = pos }
 
 
-rotateClt : Model -> CltPlank -> Int -> Char -> CltPlank
-rotateClt model clt id axis =
+rotateClt : Model -> CltPlank -> Char -> CltPlank
+rotateClt model clt axis =
     if axis == 'X' || axis == 'x' then
         { clt
-            | rotationAngleX = Quantity.plus model.cltMain.rotationAngleX (Angle.degrees 90)
+            | rotationAngleX = Quantity.plus clt.rotationAngleX (Angle.degrees 90)
         }
 
     else if axis == 'Y' || axis == 'y' then
         { clt
-            | rotationAngleY = Quantity.plus model.cltMain.rotationAngleY (Angle.degrees 90)
+            | rotationAngleY = Quantity.plus clt.rotationAngleY (Angle.degrees 90)
         }
 
     else if axis == 'Z' || axis == 'z' then
         { clt
-            | rotationAngleZ = Quantity.plus model.cltMain.rotationAngleZ (Angle.degrees 90)
+            | rotationAngleZ = Quantity.plus clt.rotationAngleZ (Angle.degrees 90)
         }
 
     else
@@ -1025,24 +1053,24 @@ view model =
             Scene3d.cylinder xAxisMaterial <|
                 Cylinder3d.along Axis3d.x
                     { start = Length.centimeters 0
-                    , end = Length.centimeters 1000
-                    , radius = Length.centimeters 0.5
+                    , end = Length.centimeters 2000
+                    , radius = Length.centimeters 3
                     }
 
         yAxisCylinder =
             Scene3d.cylinder yAxisMaterial <|
                 Cylinder3d.along Axis3d.y
                     { start = Length.centimeters 0
-                    , end = Length.centimeters 1000
-                    , radius = Length.centimeters 0.5
+                    , end = Length.centimeters 2000
+                    , radius = Length.centimeters 3
                     }
 
         zAxisCylinder =
             Scene3d.cylinder zAxisMaterial <|
                 Cylinder3d.along Axis3d.z
                     { start = Length.centimeters 0
-                    , end = Length.centimeters 1000
-                    , radius = Length.centimeters 0.5
+                    , end = Length.centimeters 2000
+                    , radius = Length.centimeters 3
                     }
 
         -- Grouping the 3 axis into one entity for readability
@@ -1056,10 +1084,10 @@ view model =
         -- 2D XY plane Grid
         xyGrid =
             Scene3d.quad (Material.texturedColor model.gridTexture)
-                (Point3d.centimeters -256 256 -25)
-                (Point3d.centimeters 256 256 -25)
-                (Point3d.centimeters 256 -256 -25)
-                (Point3d.centimeters -256 -256 -25)
+                (Point3d.centimeters -2560 2560 -250)
+                (Point3d.centimeters 2560 2560 -250)
+                (Point3d.centimeters 2560 -2560 -250)
+                (Point3d.centimeters -2560 -2560 -250)
 
         xMidpoint =
             Point3d.xCoordinate model.cltMain.centerPoint
@@ -1124,19 +1152,10 @@ view model =
             List.map getClt model.cltList
 
         guideLine =
-            Wrapper3D.cylinder 0.5 1000 (Material.metal { baseColor = Color.lightRed, roughness = 0.1 })
+            Wrapper3D.cylinder 4 5000 (Material.metal { baseColor = Color.lightRed, roughness = 0.1 })
                 |> Wrapper3D.rotateY3D (degrees 90)
-                |> Wrapper3D.move3D ( 500, 0, 0 )
+                |> Wrapper3D.move3D ( 2000, 0, 0 )
 
-        sawBlade =
-            Wrapper3D.group3D
-                [ Wrapper3D.cylinder 40 0.4 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
-                , spokes 16 (360 / 16)
-                    |> Wrapper3D.rotateY3D (degrees 90)
-                    |> Wrapper3D.move3D ( -25, 0, 0 )
-                    |> Wrapper3D.rotateZ3D (Angle.inDegrees updatedAngle)
-                , guideLine
-                ]
 
         rotationRate =
             Angle.degrees 360 |> Quantity.per Duration.second
@@ -1148,21 +1167,60 @@ view model =
             else
                 Quantity.zero
 
+
+
+        sawBlade =
+            Wrapper3D.group3D
+                [ Wrapper3D.cylinder 40 8 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
+                    |> Wrapper3D.scale3D 4
+                , spokes 16 (360 / 16)
+                    |> Wrapper3D.scale3D 4
+                    |> Wrapper3D.rotateY3D (degrees 90)
+                    |> Wrapper3D.move3D ( -95, 0, 10 )
+                    |> Wrapper3D.rotateZ3D (Angle.inDegrees updatedAngle)
+                , guideLine
+                ]
+
+        translationRate =
+            Length.centimeters 200 |> Quantity.per Duration.second
+
+        updatedPosition = 
+            let 
+                updatedPos = translationRate |> Quantity.for model.elapsedTime |> Length.inCentimeters 
+            in
+            
+            if model.isAnimating then
+            
+                if (model.cltMain.length -  model.sawBladeLeft.x) > updatedPos then 
+                    updatedPos
+
+                else if ((model.cltMain.length - model.sawBladeLeft.x) <= updatedPos) then
+                    0
+
+                else 
+                    updatedPos
+                
+            else
+                Quantity.zero |> Length.inCentimeters 
+              -- translationRate |> Quantity.for model.elapsedTime |> Quantity.negate |> Length.inCentimeters
+
+    
+
         camp3dEntities =
             Wrapper3D.renderEntities
                 [ sawBlade
                     --top sawblade
-                    |> Wrapper3D.scale3D 0.3
+                    |> Wrapper3D.scale3D 0.5
                     |> Wrapper3D.rotateY3D (degrees 90)
                     |> Wrapper3D.rotateX3D (degrees 270)
                     -- |> Wrapper3D.move3D ( 100 * Quantity.unwrap xMidpoint, 130, 0 )
-                    |> Wrapper3D.move3D ( model.sawBladeTop.x, model.sawBladeTop.y, model.sawBladeTop.z )
+                    |> Wrapper3D.move3D ( model.sawBladeTop.x, (model.sawBladeTop.y - updatedPosition), model.sawBladeTop.z )
                 , sawBlade
                     --left sawblade
-                    |> Wrapper3D.scale3D 0.3
+                    |> Wrapper3D.scale3D 0.5
                     |> Wrapper3D.rotateX3D (degrees 90)
                     -- |> Wrapper3D.move3D ( -70, 100 * Quantity.unwrap yMidpoint, 0 )
-                    |> Wrapper3D.move3D ( model.sawBladeLeft.x, model.sawBladeLeft.y, model.sawBladeLeft.z )
+                    |> Wrapper3D.move3D ( (model.sawBladeLeft.x + updatedPosition ), model.sawBladeLeft.y, model.sawBladeLeft.z )
                 ]
     in
     -- General structure for writing HTML in document type in elm.
@@ -1195,7 +1253,9 @@ view model =
                     ]
                 }
             , createCollage collageWidth collageHeight <| myShapes model
-            , h4 [] [ Html.text <| Debug.toString model.cltList ]
+            , h4 [] [ Html.text <| Debug.toString updatedPosition ]
+            , h4 [] [ Html.text <| Debug.toString (model.cltMain.length -  model.sawBladeLeft.x)]
+
             ]
         ]
     }
