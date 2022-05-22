@@ -25,9 +25,9 @@ import Block3d exposing (axes)
 import Browser
 import Browser.Dom exposing (Viewport, getViewport)
 import Browser.Events
-import Camera3d exposing (Camera3d, viewpoint)
+import Camera3d exposing (Camera3d, perspective, viewpoint)
 import CltPlank exposing (..)
-import Color exposing (Color, black, blue, lightOrange)
+import Color exposing (Color, black, blue, darkGreen, lightOrange)
 import Cylinder3d exposing (Cylinder3d)
 import Dict
 import Direction3d
@@ -51,12 +51,12 @@ import Scene3d.Mesh as Mesh exposing (Mesh)
 import Svg
 import Svg.Attributes as SA
 import Task
+import Time
 import TriangularMesh exposing (TriangularMesh, vertex)
 import Vector3d
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 import Wrapper3D
-import Color exposing (darkGreen)
 
 
 
@@ -65,11 +65,24 @@ import Color exposing (darkGreen)
 
 
 collageWidth =
-    240
+    260
 
 
 collageHeight =
     128
+
+
+type ProjectionType
+    = Perspective
+    | Orthographic
+    | Isometric
+
+
+type AnimationState
+    = Off
+    | Ready
+    | Camera
+    | Cutting
 
 
 slider : Char -> Float -> Float -> Float -> Html Msg
@@ -96,24 +109,24 @@ cutterUI model =
             ]
         , group
             (if model.numCuts == 2 then
-                [ textBox 8 8 (model.selectedId==0 ) False [ "I" ] |> move ( -55, -15 ) |> notifyTap (SelectPlank 0)
-                , textBox 8 8 (model.selectedId==1 ) False [ "II" ] |> move ( 50, -15 ) |> notifyTap (SelectPlank 1)
-                , textBox 8 8 (model.selectedId==2 ) False [ "III" ] |> move ( 50, 10 ) |> notifyTap (SelectPlank 2)
-                , textBox 8 8 (model.selectedId==3 ) False [ "IV" ] |> move ( -55, 10 ) |> notifyTap (SelectPlank 3)
+                [ textBox 8 8 (model.selectedId == 0) False [ "I" ] |> move ( -55, -15 ) |> notifyTap (SelectPlank 0)
+                , textBox 8 8 (model.selectedId == 1) False [ "II" ] |> move ( 50, -15 ) |> notifyTap (SelectPlank 1)
+                , textBox 8 8 (model.selectedId == 2) False [ "III" ] |> move ( 50, 10 ) |> notifyTap (SelectPlank 2)
+                , textBox 8 8 (model.selectedId == 3) False [ "IV" ] |> move ( -55, 10 ) |> notifyTap (SelectPlank 3)
                 ]
 
              else if model.numCuts == 1 && model.cutDir == 'X' then
-                [ textBox 8 8 (model.selectedId==0 ) False [ "I" ] |> move ( -15, 0 )
-                , textBox 8 8 (model.selectedId==1 ) False [ "II" ] |> move ( 15, 0 )
+                [ textBox 8 8 (model.selectedId == 0) False [ "I" ] |> move ( -15, 0 )
+                , textBox 8 8 (model.selectedId == 1) False [ "II" ] |> move ( 15, 0 )
                 ]
 
              else if model.numCuts == 1 && model.cutDir == 'Y' then
-                [ textBox 8 8 (model.selectedId==0 ) False [ "I" ] |> move ( 0, -15 )
-                , textBox 8 8 (model.selectedId==1) False [ "II" ] |> move ( 0, 15 )
+                [ textBox 8 8 (model.selectedId == 0) False [ "I" ] |> move ( 0, -15 )
+                , textBox 8 8 (model.selectedId == 1) False [ "II" ] |> move ( 0, 15 )
                 ]
 
              else
-                [ textBox 0 0 (model.selectedId==0 ) False [ "" ] |> move ( 15, 15 )
+                [ textBox 0 0 (model.selectedId == 0) False [ "" ] |> move ( 15, 15 )
                 ]
             )
         ]
@@ -125,6 +138,22 @@ cutterUI model =
 
 myShapes model =
     [ textBox2 35 60 False False [] |> move ( 100, 25 ) |> makeTransparent 0.8 --main, biggest box
+    , textBox 20
+        5
+        False
+        False
+        (case model.projection of
+            Orthographic ->
+                [ "Ortho" ]
+
+            Perspective ->
+                [ "Pers" ]
+
+            Isometric ->
+                [ "Iso" ]
+        )
+        |> move ( -110, 60 )
+        |> notifyTap ViewToggle
     , textBox 30 5 False False [ "OPERATIONS" ] |> move ( 100, 50 )
     , html 200 20 (slider 'X' model.sawBladeTop.x 0 ((*) 100 <| .x <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -10 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
     , html 200 20 (slider 'Y' model.sawBladeLeft.y 0 ((*) 100 <| .y <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -20 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
@@ -150,15 +179,15 @@ myShapes model =
 
 
 textBox width height isHighlighted isSelectable chars =
-    [ rect width height 
-    |> filled 
-        (if isHighlighted then
-            green
+    [ rect width height
+        |> filled
+            (if isHighlighted then
+                green
 
-        else
-            white
-        )
-    |> makeTransparent 0.8
+             else
+                white
+            )
+        |> makeTransparent 0.8
     , if isSelectable then
         GraphicSVG.text (String.join "" <| List.reverse chars)
             |> centered
@@ -177,7 +206,6 @@ textBox width height isHighlighted isSelectable chars =
             |> clip (rect width height |> ghost)
     , rect width height
         |> outlined (solid 0.3) darkBlue
-
     ]
         |> group
 
@@ -271,14 +299,15 @@ type alias SawBladeData =
 
 type alias Model =
     { window : Window
-    , elapsedTime : Duration
-    , isAnimating : Bool
+    , projection : ProjectionType
+    , time : Float
+    , animationState : AnimationState
     , rotationAngle : Angle
     , azimuth : Angle
     , elevation : Angle
     , zoom : Float
     , focusAt : Point3d Meters WorldCoordinates
-    , selectedId: Int
+    , selectedId : Int
     , isOrbiting : Bool
     , isOrbitBlock : Bool
     , sawBladeTop : SawBladeData
@@ -323,7 +352,7 @@ init () =
     --   and changing the mesh frequently causes optimization issues.
     -- This is why we store the mesh in the state change variable instead of calculating and remaking the mesh at every instance.
     -- We also store the texture values for the created meshes to apply them later in the view function
-    -- elapsedTime is a data type used to handle time w.r.t Animation and frames.
+    -- time is a data type used to handle time w.r.t Animation and frames.
     -- azimuth and elevation hold the values required to position the camera. These are dynamically changed while the user drags on the screen.
     -- isOrbiting is a boolean which holds true if the user wants to drag the screen else it is false.
     -- cltMeshx and clt_Texture hold mesh and texture values as discussed above.
@@ -331,8 +360,9 @@ init () =
     -- getViewportSize is used to get the current viewport dimensions of the browser from javascript.
     -- The other two commands are used to make a request to the github repositories which hold the textures.
     ( { window = { cw = collageWidth, ch = collageHeight, sw = 0, sh = 0 }
-      , elapsedTime = Quantity.zero
-      , isAnimating = False
+      , projection = Perspective
+      , time = 0
+      , animationState = Camera
       , rotationAngle = Quantity.zero
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
@@ -418,6 +448,7 @@ gridTextureURL =
 
 type Msg
     = Tick Duration
+    | ViewToggle
     | WindowResize (Maybe ( Int, Int ))
     | ReturnPosition (( Float, Float ) -> Msg) ( Float, Float )
     | MouseDown
@@ -447,18 +478,45 @@ update msg model =
     case msg of
         -- Tick is used to state change for every animation frame.
         Tick duration ->
-            ( { model | elapsedTime = Quantity.plus duration model.elapsedTime }, Cmd.none )
+            let
+                updatedTime =
+                    (+) model.time <| Duration.inSeconds duration
+            in
+            ( { model
+                | time = updatedTime
+              }
+            , Cmd.none
+            )
+
+        ViewToggle ->
+            case model.projection of
+                Perspective ->
+                    ( { model | projection = Orthographic }, Cmd.none )
+
+                Orthographic ->
+                    ( { model | projection = Isometric }, Cmd.none )
+
+                Isometric ->
+                    ( { model | projection = Perspective }, Cmd.none )
 
         AnimationToggle ->
-            if model.isAnimating then
-                ( { model | isAnimating = False }, Cmd.none )
+            case model.animationState of
+                Off ->
+                    ( { model | animationState = Ready, time = 0 }, Cmd.none )
 
-            else
-                ( { model | isAnimating = True }, Cmd.none )
-    
+                Ready ->
+                    ( { model | animationState = Camera }, Cmd.none )
 
+                Camera ->
+                    ( { model | animationState = Off }, Cmd.none )
 
+                _ ->
+                    ( { model | animationState = Off }, Cmd.none )
 
+        -- if model.isAnimating then
+        --     ( { model | isAnimating = False }, Cmd.none )
+        -- else
+        --     ( { model | isAnimating = True }, Cmd.none )
         -- Rotation object: Sawblade
         -- Rotation axis: For top sawblade-> about its own axis (parallel to X axis)
         --                For left sawblade-> about its own axis (parallel to Y axis)
@@ -522,7 +580,18 @@ update msg model =
                             |> Quantity.plus (dy |> Quantity.at rotationRate)
                             |> Quantity.clamp (Angle.degrees -90) (Angle.degrees 90)
                 in
-                ( { model | azimuth = newAzimuth, elevation = newElevation }, Cmd.none )
+                ( { model
+                    | azimuth = newAzimuth
+                    , elevation = newElevation
+                    , animationState =
+                        if model.animationState /= Cutting && model.animationState == Camera then
+                            Ready
+
+                        else
+                            model.animationState
+                  }
+                , Cmd.none
+                )
 
             else
                 ( model, Cmd.none )
@@ -563,50 +632,62 @@ update msg model =
         Cut numCuts cutDir ->
             ( { model
                 | isCut = True
+                , animationState =
+                    if not model.isCut then
+                        Cutting
+
+                    else
+                        model.animationState
                 , numCuts = numCuts
                 , cutDir = cutDir
                 , cltList = updateCltList model.cltList numCuts model model.cltMain
+                , time =
+                    if not model.isCut then
+                        0
+
+                    else
+                        model.time
               }
             , Cmd.none
             )
 
         RotateObject id axis ->
             let
-                selectablePlank = 
-                    if id == -1 then 
-                        model.cltMain                                                
+                selectablePlank =
+                    if id == -1 then
+                        model.cltMain
+
                     else
                         Maybe.withDefault defaultPlank <| Array.get id <| Array.fromList model.cltList
-              {-  cltList = 
-                    if id == -1 then 
-                        model.cltList                                               
-                    else
-                        selectablePlank -}
-            in        
-                ( { model | cltMain = rotateClt model selectablePlank axis }, Cmd.none )
+
+                {- cltList =
+                   if id == -1 then
+                       model.cltList
+                   else
+                       selectablePlank
+                -}
+            in
+            ( { model | cltMain = rotateClt model selectablePlank axis }, Cmd.none )
 
         Set2D ->
             ( { model | azimuth = Angle.degrees 270, elevation = Angle.degrees 90 }, Cmd.none )
 
         SelectPlank id ->
             let
-                selectablePlank = 
+                selectablePlank =
                     Maybe.withDefault defaultPlank <| Array.get id <| Array.fromList model.cltList
-
-            in  
-            ( { model | selectedId = id, focusAt = selectablePlank.centerPoint}, Cmd.none )
-
-        
+            in
+            ( { model | selectedId = id, focusAt = selectablePlank.centerPoint }, Cmd.none )
 
         CheckZoom ->
             ( model, Cmd.none )
 
         Zoom e ->
             if e.deltaY > 0 && model.zoom < 6000 then
-                ( { model | zoom = model.zoom + 50 }, Cmd.none )
+                ( { model | zoom = model.zoom + 200 }, Cmd.none )
 
             else if e.deltaY < 0 && model.zoom > 2000 then
-                ( { model | zoom = model.zoom - 50 }, Cmd.none )
+                ( { model | zoom = model.zoom - 200 }, Cmd.none )
 
             else
                 ( model, Cmd.none )
@@ -787,7 +868,7 @@ decodeMouseMove =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.isOrbiting && model.isAnimating then
+    if model.isOrbiting && model.animationState /= Off then
         -- If we're currently orbiting and animating, listen for mouse moves and mouse button
         -- up events (to stop orbiting); in a real app we'd probably also want
         -- to listen for page visibility changes to stop orbiting if the user
@@ -798,7 +879,7 @@ subscriptions model =
             , Browser.Events.onAnimationFrameDelta (Duration.milliseconds >> Tick)
             ]
 
-    else if not model.isOrbiting && model.isAnimating then
+    else if not model.isOrbiting && model.animationState /= Off then
         -- If we're currently orbiting, listen for mouse moves and mouse button
         -- up events (to stop orbiting); in a real app we'd probably also want
         -- to listen for page visibility changes to stop orbiting if the user
@@ -808,7 +889,7 @@ subscriptions model =
             , Browser.Events.onAnimationFrameDelta (Duration.milliseconds >> Tick)
             ]
 
-    else if model.isOrbiting && not model.isAnimating then
+    else if model.isOrbiting && model.animationState == Off then
         -- If we're currently orbiting, listen for mouse moves and mouse button
         -- up events (to stop orbiting); in a real app we'd probably also want
         -- to listen for page visibility changes to stop orbiting if the user
@@ -850,7 +931,7 @@ decodeMouseScroll msg =
 
 didResize : Window -> Int -> Int -> Window
 didResize window sw sh =
-    { window | sw = round <| toFloat sw * 0.99, sh = round <| toFloat sh * 0.95 }
+    { window | sw = round <| toFloat sw * 1.0, sh = round <| toFloat sh * 1.0 }
 
 
 
@@ -1014,21 +1095,62 @@ view model =
                 , intensity = Illuminance.lux 10000
                 }
 
+        cameraRotationRate =
+            14
+
+        cameraRotationAngle =
+            case model.animationState of
+                Camera ->
+                    Angle.degrees <| cameraRotationRate * model.time
+
+                _ ->
+                    Angle.degrees 0
+
         viewpoint =
             Viewpoint3d.orbitZ
                 { focalPoint = model.focusAt
-                , azimuth = model.azimuth
+                , azimuth = model.azimuth |> Quantity.plus cameraRotationAngle
                 , elevation = model.elevation
                 , distance = Length.centimeters model.zoom
+                }
+
+        viewpointOrtho =
+            Viewpoint3d.orbitZ
+                { focalPoint = model.focusAt
+                , azimuth = model.azimuth |> Quantity.plus cameraRotationAngle
+                , elevation = model.elevation
+                , distance = Length.centimeters 2000
+                }
+
+        viewpointIso =
+            Viewpoint3d.orbitZ
+                { focalPoint = model.focusAt
+                , azimuth = Angle.degrees 45
+                , elevation = Viewpoint3d.isometricElevation
+                , distance = Length.centimeters 2000
                 }
 
         -- Create a camera with the viewpoint location as mentioned before.
         -- The azimuth and elevation are dynamically taken from the model. These values change when the user drags on the screen.
         camera =
-            Camera3d.perspective
-                { viewpoint = viewpoint
-                , verticalFieldOfView = Angle.degrees 30
-                }
+            case model.projection of
+                Perspective ->
+                    Camera3d.perspective
+                        { viewpoint = viewpoint
+                        , verticalFieldOfView = Angle.degrees 30
+                        }
+
+                Orthographic ->
+                    Camera3d.orthographic
+                        { viewpoint = viewpointOrtho
+                        , viewportHeight = Length.centimeters (model.zoom * 0.5)
+                        }
+
+                Isometric ->
+                    Camera3d.orthographic
+                        { viewpoint = viewpointIso
+                        , viewportHeight = Length.centimeters 2000
+                        }
 
         -- Create 3D axes for representing the direction of X, Y and Z
         xAxisMaterial =
@@ -1156,18 +1278,17 @@ view model =
                 |> Wrapper3D.rotateY3D (degrees 90)
                 |> Wrapper3D.move3D ( 2000, 0, 0 )
 
-
         rotationRate =
-            Angle.degrees 360 |> Quantity.per Duration.second
+            --Angle.degrees 8 |> Quantity.per Duration.second
+            8
 
         updatedAngle =
-            if model.isAnimating then
-                rotationRate |> Quantity.for model.elapsedTime
+            case model.animationState of
+                Off ->
+                    Angle.degrees 0
 
-            else
-                Quantity.zero
-
-
+                _ ->
+                    Angle.degrees <| rotationRate * model.time
 
         sawBlade =
             Wrapper3D.group3D
@@ -1181,31 +1302,28 @@ view model =
                 , guideLine
                 ]
 
-        translationRate =
-            Length.centimeters 200 |> Quantity.per Duration.second
+        updatedPosition =
+            if model.animationState == Cutting && model.isCut then
+                let
+                    translationRate =
+                        400
 
-        updatedPosition = 
-            let 
-                updatedPos = translationRate |> Quantity.for model.elapsedTime |> Length.inCentimeters 
-            in
-            
-            if model.isAnimating then
-            
-                if (model.cltMain.length -  model.sawBladeLeft.x) > updatedPos then 
+                    updatedPos =
+                        translationRate * model.time
+                in
+                if (model.cltMain.length - model.sawBladeLeft.x) > updatedPos then
                     updatedPos
 
-                else if ((model.cltMain.length - model.sawBladeLeft.x) <= updatedPos) then
+                else if (model.cltMain.length - model.sawBladeLeft.x) <= updatedPos then
                     0
 
-                else 
+                else
                     updatedPos
-                
+
             else
-                Quantity.zero |> Length.inCentimeters 
-              -- translationRate |> Quantity.for model.elapsedTime |> Quantity.negate |> Length.inCentimeters
+                0
 
-    
-
+        -- translationRate |> Quantity.for model.time |> Quantity.negate |> Length.inCentimeters
         camp3dEntities =
             Wrapper3D.renderEntities
                 [ sawBlade
@@ -1214,24 +1332,23 @@ view model =
                     |> Wrapper3D.rotateY3D (degrees 90)
                     |> Wrapper3D.rotateX3D (degrees 270)
                     -- |> Wrapper3D.move3D ( 100 * Quantity.unwrap xMidpoint, 130, 0 )
-                    |> Wrapper3D.move3D ( model.sawBladeTop.x, (model.sawBladeTop.y - updatedPosition), model.sawBladeTop.z )
+                    |> Wrapper3D.move3D ( model.sawBladeTop.x, model.sawBladeTop.y - updatedPosition, model.sawBladeTop.z )
                 , sawBlade
                     --left sawblade
                     |> Wrapper3D.scale3D 0.5
                     |> Wrapper3D.rotateX3D (degrees 90)
                     -- |> Wrapper3D.move3D ( -70, 100 * Quantity.unwrap yMidpoint, 0 )
-                    |> Wrapper3D.move3D ( (model.sawBladeLeft.x + updatedPosition ), model.sawBladeLeft.y, model.sawBladeLeft.z )
+                    |> Wrapper3D.move3D ( model.sawBladeLeft.x + updatedPosition, model.sawBladeLeft.y, model.sawBladeLeft.z )
                 ]
     in
     -- General structure for writing HTML in document type in elm.
     { title = "CLTCreator"
     , body =
         [ div [ onScroll CheckZoom ]
-            [ h1 [ style "margin" "0px", style "text-align" "center" ] [ Html.text "CLTCreator" ]
-
-            -- This part includes a Scene3d.custom which is a datatype used to render 3D scenes from the elm-3d-scene library.
-            -- we input the values for creating the 3D environment with the values and entities that we have created before.
-            , Scene3d.custom
+            [ -- h1 [ style "margin" "0px", style "text-align" "center" ] [ Html.text "CLTCreator" ]
+              -- This part includes a Scene3d.custom which is a datatype used to render 3D scenes from the elm-3d-scene library.
+              -- we input the values for creating the 3D environment with the values and entities that we have created before.
+              Scene3d.custom
                 { camera = camera
                 , clipDepth = Length.centimeters 0.5
                 , dimensions = ( Pixels.int model.window.sw, Pixels.int model.window.sh )
@@ -1253,9 +1370,8 @@ view model =
                     ]
                 }
             , createCollage collageWidth collageHeight <| myShapes model
-            , h4 [] [ Html.text <| Debug.toString updatedPosition ]
-            , h4 [] [ Html.text <| Debug.toString (model.cltMain.length -  model.sawBladeLeft.x)]
 
+            --, p [ style "margin" "0px", style "padding" "0px" ] [ Html.text <| Debug.toString model.time ]
             ]
         ]
     }
