@@ -65,7 +65,7 @@ import Wrapper3D
 
 
 collageWidth =
-    260
+    270
 
 
 collageHeight =
@@ -138,6 +138,7 @@ cutterUI model =
 
 myShapes model =
     [ textBox2 35 60 False False [] |> move ( 100, 25 ) |> makeTransparent 0.8 --main, biggest box
+    , pipelines |> move (130, -15 ) 
     , textBox 20
         5
         False
@@ -152,7 +153,7 @@ myShapes model =
             Isometric ->
                 [ "Iso" ]
         )
-        |> move ( -110, 60 )
+        |> move ( -120, 44 )
         |> notifyTap ViewToggle
     , textBox 30 5 False False [ "OPERATIONS" ] |> move ( 100, 50 )
     , html 200 20 (slider 'X' model.sawBladeTop.x 0 ((*) 100 <| .x <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -10 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
@@ -160,12 +161,15 @@ myShapes model =
     , textBox 30 5 False False [ "Rotate along X axis" ] |> move ( 100, 42 ) |> notifyTap (RotateObject model.selectedId 'X')
     , textBox 30 5 False False [ "Rotate along Y axis" ] |> move ( 100, 36 ) |> notifyTap (RotateObject model.selectedId 'Y')
     , textBox 30 5 False False [ "Rotate along Z axis" ] |> move ( 100, 30 ) |> notifyTap (RotateObject model.selectedId 'Z')
-    , textBox 30 5 False False [ "Cutter" ] |> move ( 100, 12 ) |> notifyTap Set2D
-    , textBox 30 5 False False [ "Play" ] |> move ( 100, 6 ) |> notifyTap AnimationToggle
-    , textBox 30 5 False False [ "Cut" ] |> move ( 100, 0 ) |> notifyTap (Cut 2 ' ')
-    , textBox 30 5 False False [ "Focus" ] |> move ( 100, 24 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
-    , textBox 30 5 False False [ "Reset" ] |> move ( 100, 18 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
-    , textBox 40 20 False True [ model.genCode ] |> move ( -100, -40 )
+    , textBox 30 5 False False [ "Cutter" ] |> move ( 100, 18 ) |> notifyTap Set2D
+    , textBox 30 5 False False [ "Cut" ] |> move ( 100, 6 ) |> notifyTap (Cut 2 ' ')
+    , textBox 30 5 False False [ "Focus" ] |> move ( 100, 12 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
+    , textBox 30 5 False False [ "Reset" ] |> move ( 100, 0 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
+--  , textBox 30 5 False False [ "Play" ] |> move ( -80, 60 ) |> notifyTap AnimationToggle    
+    , animationButton model |> move (-105, 45) |> notifyTap AnimationToggle 
+    , GraphicSVG.text "CLT" |> fixedwidth |> bold |> GraphicSVG.size 9 |> filled GraphicSVG.darkBlue |> move (-130, 55)
+    , GraphicSVG.text "Creator" |> fixedwidth |> bold |> GraphicSVG.size 4 |> filled GraphicSVG.darkBlue |> move (-130, 50)
+    , textBox 40 20 False True [ model.genCode ] |> move ( -110, -40 )
     , if model.elevation == Angle.degrees 90 && model.focusAt /= Point3d.meters 0 0 0 then
         cutterUI model
 
@@ -174,6 +178,116 @@ myShapes model =
     ]
 
 
+--animationButton 
+animationButton model = 
+    (case model.animationState of
+            Off ->
+                playButton 3
+
+            Ready ->
+                playPlusCamButton
+                    
+            Camera ->
+                pauseButton 1.5 5  
+       
+            _ ->
+                pauseButton 1.5 4 
+
+    )
+
+-- Play button
+playButton side = 
+    [
+        group[
+            rect 4 4
+                |> filled darkBlue
+                |> makeTransparent 0.1
+            , triangle side
+                |> filled darkBlue
+    ]
+    ]
+        |> group
+            |> scale 1.2
+            |> move(-1.5,-1.25)
+
+-- Pause button
+pauseButton width height = 
+    [   group[
+        rect 4 5
+            |> filled darkBlue
+            |> makeTransparent 0.1
+        , rect width height
+            |> filled darkBlue
+        , rect width height
+            |> filled darkBlue
+            |> move (-2.5, 0)
+            ]
+                |> scale 1.15
+                |> move(0,-1.25)
+    
+    ]
+        |> group
+
+--play + cam button
+playPlusCamButton  = 
+    [
+
+        group[
+            rect 24 24
+                |> filled darkBlue
+                |> makeTransparent 0.1
+            
+            , rect 12 6
+                |> filled darkBlue
+                |> subtract (circle 2 |> ghost |> move (0,0))
+                |> subtract (circle 0.5 |> ghost |> move (2,2))
+                |> move (5, 5)
+            , rect 2 3
+                |> filled darkBlue
+                |> move (9, 7)
+        ]
+            , triangle 12
+                |> filled darkBlue  
+                |> move (-5, -4)
+                   
+    ]
+        |> group
+            |> scale 0.3
+
+-- play + sawblade button
+playPlusSawblade = 
+    [
+        group[
+            circle 12 
+                |> filled darkBlue
+                |> subtract (circle 4 |> ghost |> move (0,0))
+            
+        ]
+    ]
+        |> group
+
+
+-- pipelines
+
+pipelines = 
+    [
+        group[
+            roundedRect 83 3 1 --rightmost
+                |> filled darkBlue
+                |> rotate (degrees 90)
+            , roundedRect 240 3 1 --longest
+                |> filled darkBlue
+                |> move (-120, -40)
+            , roundedRect 7 3 1 --code linker
+                |> filled darkBlue
+                |> rotate (degrees 90)   
+                |> move (-240, -38) 
+            , roundedRect 12 3 1 --operations linker
+                |> filled darkBlue
+                |> move (-6, 40)                           
+            ]
+        ]
+            |> group
 
 -- Textbox overlay template
 
