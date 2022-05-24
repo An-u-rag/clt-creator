@@ -137,7 +137,7 @@ cutterUI model =
 
 
 myShapes model =
-    [ textBox2 35 60 False False [] |> move ( 100, 25 ) |> makeTransparent 0.8 --main, biggest box
+    [ textBox2 35 60 False False [] |> move ( 100, 20 ) |> makeTransparent 0.8 --main, biggest box
     , pipelines |> move (130, -15 ) 
     , textBox 20
         5
@@ -153,20 +153,20 @@ myShapes model =
             Isometric ->
                 [ "Iso" ]
         )
-        |> move ( -120, 44 )
+        |> move ( 97, 55 )
         |> notifyTap ViewToggle
-    , textBox 30 5 False False [ "OPERATIONS" ] |> move ( 100, 50 )
-    , html 200 20 (slider 'X' model.sawBladeTop.x 0 ((*) 100 <| .x <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -10 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
-    , html 200 20 (slider 'Y' model.sawBladeLeft.y 0 ((*) 100 <| .y <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -20 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
-    , textBox 30 5 False False [ "Rotate along X axis" ] |> move ( 100, 42 ) |> notifyTap (RotateObject model.selectedId 'X')
-    , textBox 30 5 False False [ "Rotate along Y axis" ] |> move ( 100, 36 ) |> notifyTap (RotateObject model.selectedId 'Y')
-    , textBox 30 5 False False [ "Rotate along Z axis" ] |> move ( 100, 30 ) |> notifyTap (RotateObject model.selectedId 'Z')
-    , textBox 30 5 False False [ "Cutter" ] |> move ( 100, 18 ) |> notifyTap Set2D
-    , textBox 30 5 False False [ "Cut" ] |> move ( 100, 6 ) |> notifyTap (Cut 2 ' ')
-    , textBox 30 5 False False [ "Focus" ] |> move ( 100, 12 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
-    , textBox 30 5 False False [ "Reset" ] |> move ( 100, 0 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
+    , textBox 30 5 False False [ "OPERATIONS" ] |> move ( 100, 45 )
+    , html 200 20 (slider 'X' model.sawBladeTop.x 0 ((*) 100 <| .x <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -15 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
+    , html 200 20 (slider 'Y' model.sawBladeLeft.y 0 ((*) 100 <| .y <| Point3d.toMeters model.cltMain.centerPoint)) |> scale 0.2 |> move ( 83, -25 ) |> notifyEnter (BlockOrbiting True) |> notifyLeave (BlockOrbiting False)
+    , textBox 30 5 False False [ "Rotate along X axis" ] |> move ( 100, 36 ) |> notifyTap (RotateObject model.selectedId 'X')
+    , textBox 30 5 False False [ "Rotate along Y axis" ] |> move ( 100, 30 ) |> notifyTap (RotateObject model.selectedId 'Y')
+    , textBox 30 5 False False [ "Rotate along Z axis" ] |> move ( 100, 24 ) |> notifyTap (RotateObject model.selectedId 'Z')
+    , textBox 30 5 False False [ "Cutter" ] |> move ( 100, 12 ) |> notifyTap Set2D
+    , textBox 30 5 False False [ "Cut" ] |> move ( 100, 0 ) |> notifyTap (Cut 2 ' ')
+    , textBox 30 5 False False [ "Focus" ] |> move ( 100, 6 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
+    , textBox 30 5 False False [ "Reset" ] |> move ( 100, -6 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
 --  , textBox 30 5 False False [ "Play" ] |> move ( -80, 60 ) |> notifyTap AnimationToggle    
-    , animationButton model |> move (-105, 45) |> notifyTap AnimationToggle 
+    , animationButton model |> move (112.5, 56) |> notifyTap AnimationToggle 
     , GraphicSVG.text "CLT" |> fixedwidth |> bold |> GraphicSVG.size 9 |> filled GraphicSVG.darkBlue |> move (-130, 55)
     , GraphicSVG.text "Creator" |> fixedwidth |> bold |> GraphicSVG.size 4 |> filled GraphicSVG.darkBlue |> move (-130, 50)
     , textBox 40 20 False True [ model.genCode ] |> move ( -110, -40 )
