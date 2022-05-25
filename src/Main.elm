@@ -116,13 +116,13 @@ cutterUI model =
                 ]
 
              else if model.numCuts == 1 && model.cutDir == 'X' then
-                [ textBox 8 8 (model.selectedId == 0) False [ "I" ] |> move ( -15, 0 )
-                , textBox 8 8 (model.selectedId == 1) False [ "II" ] |> move ( 15, 0 )
+                [ textBox 8 8 (model.selectedId == 0) False [ "I" ] |> move ( -55, 0 ) |> notifyTap (SelectPlank 0)
+                , textBox 8 8 (model.selectedId == 1) False [ "II" ] |> move ( 55, 0 ) |> notifyTap (SelectPlank 1)
                 ]
 
              else if model.numCuts == 1 && model.cutDir == 'Y' then
-                [ textBox 8 8 (model.selectedId == 0) False [ "I" ] |> move ( 0, -15 )
-                , textBox 8 8 (model.selectedId == 1) False [ "II" ] |> move ( 0, 15 )
+                [ textBox 8 8 (model.selectedId == 0) False [ "I" ] |> move ( 0, -15 ) |> notifyTap (SelectPlank 0)
+                , textBox 8 8 (model.selectedId == 1) False [ "II" ] |> move ( 0, 15 ) |> notifyTap (SelectPlank 1)
                 ]
 
              else
@@ -1441,7 +1441,7 @@ view model =
 
         sawBlade =
             Wrapper3D.group3D
-                [ Wrapper3D.cylinder 40 8 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
+                [ Wrapper3D.cylinder 40 4 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
                     |> Wrapper3D.scale3D 4
                 , spokes 16 (360 / 16)
                     |> Wrapper3D.scale3D 4
