@@ -57,7 +57,7 @@ import Vector3d
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 import Wrapper3D
-
+import Skybox exposing (..)
 
 
 -- INIT
@@ -543,7 +543,8 @@ type alias Model =
     , cltMain : CltPlank
     , cltList : List CltPlank
     , gridTexture : Material.Texture Color.Color
-    , genCode : String
+    , skyboxTexture : Material.Texture Color.Color
+--    , skybox : Scene3d.Entity WorldCoordinates
     }
 
 
@@ -627,7 +628,7 @@ init () =
             }
       , cltList = []
       , gridTexture = Material.constant Color.black
-      , genCode = "Your Code: "
+      , skyboxTexture = Material.constant Color.brown
       }
     , Cmd.batch
         [ getViewportSize
@@ -636,6 +637,7 @@ init () =
         , Task.attempt (GotTexture "top") (Material.loadWith Material.bilinearFiltering cltTopTextureURL)
         , Task.attempt (GotTexture "side") (Material.loadWith Material.trilinearFiltering cltSideTextureURL)
         , Task.attempt (GotTexture "grid") (Material.loadWith Material.trilinearFiltering gridTextureURL)
+        , Task.attempt (GotTexture "skybox") (Material.loadWith Material.trilinearFiltering skyboxTextureURL)
         ]
     )
 
@@ -656,9 +658,12 @@ cltSideTextureURL =
 
 gridTextureURL : String
 gridTextureURL =
-    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/GraphPaperTextures/GraphPaper2048-512x512-grey-blue.png"
+    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/GraphPaperTextures/GraphPaper4096-aligned.png"
 
 
+skyboxTextureURL : String
+skyboxTextureURL =
+    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/warehouseTexture.png"
 
 -- UPDATE
 -- This datatype acts like a messgae/action handler for changing state (or updating) the current state of our app.
@@ -833,6 +838,9 @@ update msg model =
 
             else if textureType == "grid" then
                 ( { model | gridTexture = texture }, Cmd.none )
+
+            else if textureType == "skybox" then
+                ( { model | skyboxTexture = texture }, Cmd.none )
 
             else
                 ( { model | cltMain = updateClt model.cltMain "SideTexture" texture }, Cmd.none )
@@ -1491,10 +1499,10 @@ view model =
         -- 2D XY plane Grid
         xyGrid =
             Scene3d.quad (Material.texturedColor model.gridTexture)
-                (Point3d.centimeters -2560 2560 -250)
-                (Point3d.centimeters 2560 2560 -250)
-                (Point3d.centimeters 2560 -2560 -250)
-                (Point3d.centimeters -2560 -2560 -250)
+                (Point3d.centimeters -2048 2048 -250)
+                (Point3d.centimeters 2048 2048 -250)
+                (Point3d.centimeters 2048 -2048 -250)
+                (Point3d.centimeters -2048 -2048 -250)
 
         xMidpoint =
             Point3d.xCoordinate model.cltMain.centerPoint
@@ -1672,8 +1680,9 @@ view model =
                       else
                         cltPlank
                     , Scene3d.group camp3dEntities
+                    , roundSkybox ( if True then Just model.skyboxTexture else Nothing) 100000 
                     ]
-                }
+                }   
             , createCollage collageWidth collageHeight <| myShapes model
 
             --, p [ style "margin" "0px", style "padding" "0px" ] [ Html.text <| Debug.toString model.cltList ]
