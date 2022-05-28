@@ -116,8 +116,8 @@ cutterUI model =
                 ]
 
              else if model.numCuts == 1 && model.cutDir == 'X' then
-                [ textBox 8 8 (model.selectedId == 0) False [ "I" ] |> move ( -55, 0 ) |> notifyTap (SelectPlank 0)
-                , textBox 8 8 (model.selectedId == 1) False [ "II" ] |> move ( 55, 0 ) |> notifyTap (SelectPlank 1)
+                [ textBox 8 8 (model.selectedId == 1) False [ "I" ] |> move ( -55, 0 ) |> notifyTap (SelectPlank 1)
+                , textBox 8 8 (model.selectedId == 0) False [ "II" ] |> move ( 55, 0 ) |> notifyTap (SelectPlank 0)
                 ]
 
              else if model.numCuts == 1 && model.cutDir == 'Y' then
@@ -172,13 +172,105 @@ myShapes model =
     , animationButton model |> move ( 112.5, 56 ) |> notifyTap AnimationToggle
     , GraphicSVG.text "CLT" |> fixedwidth |> bold |> GraphicSVG.size 9 |> filled GraphicSVG.darkBlue |> move ( -130, 55 )
     , GraphicSVG.text "Creator" |> fixedwidth |> bold |> GraphicSVG.size 4 |> filled GraphicSVG.darkBlue |> move ( -130, 50 )
-    , textBox 40 20 False True [ model.genCode ] |> move ( -110, -40 )
+    , yourCode model
     , if model.elevation == Angle.degrees 90 && model.focusAt /= Point3d.meters 0 0 0 then
         cutterUI model
 
       else
         textBox 0 0 True False [ "" ] |> move ( 0, 0 )
     ]
+
+
+yourCode model =
+    group
+        [ rect 40 60
+            |> filled white
+            |> makeTransparent 0.8
+            |> addOutline (solid 0.3) darkBlue
+            |> move ( -110, -20 )
+        , if model.isCut then
+            codeGen model.cltList
+
+          else
+            codeGen [ model.cltMain ]
+        ]
+
+
+codeGen : List CltPlank -> Shape userMsg
+codeGen cltList =
+    group <|
+        (if List.length cltList == 1 then
+            List.map2 (\y clt -> clt |> move ( 0, -y )) [ 0 ]
+
+         else
+            List.map2 (\y clt -> clt |> move ( 0, -y )) [ 0, 12, 24, 36 ]
+        )
+        <|
+            List.map
+                (\clt ->
+                    group
+                        [ GraphicSVG.text (plankMeshCode clt)
+                            |> GraphicSVG.size 2.5
+                            |> customFont "monospace"
+                            |> filled darkBlue
+                            |> move ( -128, 6 )
+                        , GraphicSVG.text (plankRot "X" clt)
+                            |> GraphicSVG.size 2.5
+                            |> customFont "monospace"
+                            |> filled darkBlue
+                            |> move ( -122, 3 )
+                        , GraphicSVG.text (plankRot "Y" clt)
+                            |> GraphicSVG.size 2.5
+                            |> customFont "monospace"
+                            |> filled darkBlue
+                            |> move ( -122, 0 )
+                        , GraphicSVG.text (plankRot "Z" clt)
+                            |> GraphicSVG.size 2.5
+                            |> customFont "monospace"
+                            |> filled darkBlue
+                            |> move ( -122, -3 )
+                        ]
+                )
+                cltList
+
+
+plankMeshCode clt =
+    "CltPlank "
+        ++ Debug.toString clt.width
+        ++ " "
+        ++ Debug.toString clt.length
+        ++ " "
+        ++ Debug.toString clt.height
+
+
+plankRot dir clt =
+    case dir of
+        "X" ->
+            if clt.rotationAngleX == Angle.degrees 0 then
+                ""
+
+            else
+                "|> RotX "
+                    ++ Debug.toString (Angle.inDegrees clt.rotationAngleX)
+
+        "Y" ->
+            if clt.rotationAngleY == Angle.degrees 0 then
+                ""
+
+            else
+                "|> RotY "
+                    ++ Debug.toString (Angle.inDegrees clt.rotationAngleY)
+
+        "Z" ->
+            if clt.rotationAngleZ == Angle.degrees 0 then
+                ""
+
+            else
+                "|> RotZ "
+                    ++ Debug.toString (Angle.inDegrees clt.rotationAngleZ)
+
+        _ ->
+            ""
 
 
 
