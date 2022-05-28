@@ -50,7 +50,20 @@ Commit 8:
 - Cutting mechanism for the cltMain plank is done for 2 cuts simultaeneously. 
 - The cut produces 4 smaller planks and makes the cltMain disappear. 
 - The cut also correctly offsets the smaller planks to their original positions according to parent plank(cltmain).
-- Centerpoint and Frame are also correctly allocated to the smalelr planks.
+- Centerpoint and Frame are also correctly allocated to the smaller planks.
 - Need to implement the mechanism for just 1 cut. (Horizontally or Vertically)
 - Need to implement selectability and focus for the smaller planks and overall individualization from CltList. (How?)
 - Need more UI in cutter mode. (Using GraphicSVG elements)
+
+Commit 9:
+- Mechanism for Single axis cut is done.
+- Overall UI has been improved.
+- Individual plank selectability has been added.
+- UI for cutting is more detailed.
+- Abstraction of helper functions and main datastructure for CLTplank is done.
+- Resized the CltPlank accurately w.r.t. real world dimensions.
+- After cutting, individual planks can now be rotated. 
+- Added Animation State with logical progession based on button input. 
+- Added Camera animations. 
+- Added Projection States with 3 different projections apt for CAD tools. 
+- Perspective, Orthographic and Isometric projections have been added. 
