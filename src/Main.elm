@@ -145,13 +145,13 @@ myShapes model =
         False
         (case model.projection of
             Orthographic ->
-                [ "Ortho" ]
+                [ "Orthographic" ]
 
             Perspective ->
-                [ "Pers" ]
+                [ "Perspective" ]
 
             Isometric ->
-                [ "Iso" ]
+                [ "Isometric" ]
         )
         |> move ( 97, 55 )
         |> notifyTap ViewToggle
@@ -166,7 +166,7 @@ myShapes model =
     , textBox 10 5 False False [ "CutX" ] |> move ( 100, 0 ) |> notifyTap (Cut 1 'X')
     , textBox 10 5 False False [ "CutY" ] |> move ( 110, 0 ) |> notifyTap (Cut 1 'Y')
     , textBox 30 5 False False [ "Focus" ] |> move ( 100, 6 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
-    , textBox 30 5 False False [ "Reset" ] |> move ( 100, -6 ) |> notifyTap (FocusChange (Point3d.xyz (Length.centimeters 0) (Length.centimeters 0) (Length.centimeters 0)))
+    , textBox 30 5 False False [ "Reset" ] |> move ( 100, -6 ) |> notifyTap Reset
 
     --  , textBox 30 5 False False [ "Play" ] |> move ( -80, 60 ) |> notifyTap AnimationToggle
     , animationButton model |> move ( 112.5, 56 ) |> notifyTap AnimationToggle
@@ -690,6 +690,7 @@ type Msg
     | CheckZoom
     | Zoom MouseWheelEvent
     | UpdateSawBladeSlider Char String
+    | Reset
     | NoOp
 
 
@@ -923,9 +924,52 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
+        Reset ->
+            ( { model
+                | isCut = False
+                , numCuts = 0
+                , cutDir = ' '
+                , cltMain = resetPlank model.cltMain
+                , rotationAngle = Quantity.zero
+                , focusAt = Point3d.centimeters 0 0 0
+                , selectedId = -1
+                , sawBladeTop =
+                    { x = .x <| Point3d.toRecord Length.inCentimeters model.cltMain.centerPoint
+                    , y = (+) 300 <| (*) 2 <| .y <| Point3d.toRecord Length.inCentimeters model.cltMain.centerPoint
+                    , z = .z <| Point3d.toRecord Length.inCentimeters model.cltMain.centerPoint
+                    }
+                , sawBladeLeft =
+                    { x = (-) 1500 <| (*) 2 <| .x <| Point3d.toRecord Length.inCentimeters model.cltMain.centerPoint
+                    , y = .y <| Point3d.toRecord Length.inCentimeters model.cltMain.centerPoint
+                    , z = .z <| Point3d.toRecord Length.inCentimeters model.cltMain.centerPoint
+                    }
+                , cltList = []
+              }
+            , Cmd.none
+            )
+
         -- Default catch to make no change to model/state.
         NoOp ->
             ( model, Cmd.none )
+
+
+resetPlank : CltPlank -> CltPlank
+resetPlank clt =
+    { width = clt.width
+    , length = clt.length
+    , height = clt.height
+    , offsetX = 0
+    , offsetY = 0
+    , rotationAngleX = Angle.degrees 0
+    , rotationAngleY = Angle.degrees 0
+    , rotationAngleZ = Angle.degrees 0
+    , centerPoint = clt.centerPoint
+    , cltFrame = Frame3d.atPoint clt.centerPoint
+    , indexedMesh = clt.indexedMesh
+    , stripMesh = clt.stripMesh
+    , cltTopTexture = clt.cltTopTexture
+    , cltSideTexture = clt.cltSideTexture
+    }
 
 
 updatePos : SawBladeData -> Float -> Char -> SawBladeData
