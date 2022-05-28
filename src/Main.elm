@@ -51,9 +51,7 @@ import Scene3d.Mesh as Mesh exposing (Mesh)
 import Svg
 import Svg.Attributes as SA
 import Task
-import Time
 import TriangularMesh exposing (TriangularMesh, vertex)
-import Vector3d
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 import Wrapper3D
@@ -358,20 +356,6 @@ playPlusCamButton =
 
 
 
--- play + sawblade button
-
-
-playPlusSawblade =
-    [ group
-        [ circle 12
-            |> filled darkBlue
-            |> subtract (circle 4 |> ghost |> move ( 0, 0 ))
-        ]
-    ]
-        |> group
-
-
-
 -- pipelines
 
 
@@ -641,17 +625,7 @@ init () =
 
 
 
--- URLs for the CLT textures and Grid
-
-
-cltTopTextureURL : String
-cltTopTextureURL =
-    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/clt-textures/clt1.png"
-
-
-cltSideTextureURL : String
-cltSideTextureURL =
-    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/clt-textures/crosssection-2.png"
+-- URLs for the Grid
 
 
 gridTextureURL : String
@@ -829,23 +803,23 @@ update msg model =
         GotTexture textureType (Ok texture) ->
             if textureType == "top" then
                 -- Successfully loaded the texture
-                ( { model | cltMain = updateClt model.cltMain "TopTexture" texture }, Cmd.none )
+                ( { model | cltMain = updateCltTexture model.cltMain "TopTexture" texture }, Cmd.none )
 
             else if textureType == "grid" then
                 ( { model | gridTexture = texture }, Cmd.none )
 
             else
-                ( { model | cltMain = updateClt model.cltMain "SideTexture" texture }, Cmd.none )
+                ( { model | cltMain = updateCltTexture model.cltMain "SideTexture" texture }, Cmd.none )
 
         GotTexture textureType (Err error) ->
             if textureType == "top" then
-                ( { model | cltMain = updateClt model.cltMain "TopTexture" (Material.constant Color.blue) }, Cmd.none )
+                ( { model | cltMain = updateCltTexture model.cltMain "TopTexture" (Material.constant Color.blue) }, Cmd.none )
 
             else if textureType == "grid" then
                 ( { model | gridTexture = Material.constant Color.blue }, Cmd.none )
 
             else
-                ( { model | cltMain = updateClt model.cltMain "SideTexture" (Material.constant Color.blue) }, Cmd.none )
+                ( { model | cltMain = updateCltTexture model.cltMain "SideTexture" (Material.constant Color.blue) }, Cmd.none )
 
         FocusChange point ->
             ( { model
@@ -887,7 +861,11 @@ update msg model =
                        selectablePlank
                 -}
             in
-            ( { model | cltMain = rotateClt model selectablePlank axis }, Cmd.none )
+            if id == -1 then
+                ( { model | cltMain = rotateClt selectablePlank axis }, Cmd.none )
+
+            else
+                ( { model | cltList = rotateCltInList model.cltList selectablePlank axis }, Cmd.none )
 
         Set2D ->
             ( { model | azimuth = Angle.degrees 270, elevation = Angle.degrees 90 }, Cmd.none )
@@ -953,23 +931,17 @@ update msg model =
             ( model, Cmd.none )
 
 
-resetPlank : CltPlank -> CltPlank
-resetPlank clt =
-    { width = clt.width
-    , length = clt.length
-    , height = clt.height
-    , offsetX = 0
-    , offsetY = 0
-    , rotationAngleX = Angle.degrees 0
-    , rotationAngleY = Angle.degrees 0
-    , rotationAngleZ = Angle.degrees 0
-    , centerPoint = clt.centerPoint
-    , cltFrame = Frame3d.atPoint clt.centerPoint
-    , indexedMesh = clt.indexedMesh
-    , stripMesh = clt.stripMesh
-    , cltTopTexture = clt.cltTopTexture
-    , cltSideTexture = clt.cltSideTexture
-    }
+rotateCltInList : List CltPlank -> CltPlank -> Char -> List CltPlank
+rotateCltInList cltList clt dir =
+    List.map
+        (\c ->
+            if c == clt then
+                rotateClt c dir
+
+            else
+                c
+        )
+        cltList
 
 
 updatePos : SawBladeData -> Float -> Char -> SawBladeData
@@ -979,69 +951,6 @@ updatePos sb pos axis =
 
     else
         { sb | y = pos }
-
-
-rotateClt : Model -> CltPlank -> Char -> CltPlank
-rotateClt model clt axis =
-    if axis == 'X' || axis == 'x' then
-        { clt
-            | rotationAngleX = Quantity.plus clt.rotationAngleX (Angle.degrees 90)
-        }
-
-    else if axis == 'Y' || axis == 'y' then
-        { clt
-            | rotationAngleY = Quantity.plus clt.rotationAngleY (Angle.degrees 90)
-        }
-
-    else if axis == 'Z' || axis == 'z' then
-        { clt
-            | rotationAngleZ = Quantity.plus clt.rotationAngleZ (Angle.degrees 90)
-        }
-
-    else
-        model.cltMain
-
-
-updateClt : CltPlank -> String -> Material.Texture Color.Color -> CltPlank
-updateClt clt attrib value =
-    case attrib of
-        "TopTexture" ->
-            { clt | cltTopTexture = value }
-
-        "SideTexture" ->
-            { clt | cltSideTexture = value }
-
-        _ ->
-            clt
-
-
-
--- Need to set the positions, rotations(maybe inherit from main?) and dimensions
--- for the new planks and spawn them (add them to cltList)
-{-
-
-   CltPlank =
-   { rotationAngleX : Angle
-   , rotationAngleY : Angle
-   , rotationAngleZ : Angle
-   , centerPoint : Point3d Meters WorldCoordinates
-   , cltFrame : Frame
-   , indexedMesh : Mesh.Unlit WorldCoordinates (change)
-   , stripMesh : Mesh.Unlit WorldCoordinates (change)
-   , cltTopTexture : Material.Texture Color.Color (change later)
-   , cltSideTexture : Material.Texture Color.Color (change later)
-   }
-
-   if there are 2 cuts: We need to spawn 4 cltplanks
-   if there is 1 cut: We only need to spawn 2 cltplanks
-
-   -- create a singleton for the cut planks and append them to cltList
-
-   For coordinates and dimensions of cut planks
-   -- need x pos of top sawblade
-   -- need y pos of left sawbl9ade
-
--}
 
 
 updateCltList : List CltPlank -> Int -> Char -> Model -> CltPlank -> List CltPlank
@@ -1069,19 +978,19 @@ updateCltList cltList ncuts cutDir model parentCltPlank =
 
         plank1 =
             List.singleton <|
-                createPlank leftSawbladeY topSawbladeX 0 0 model
+                createPlankFromParent leftSawbladeY topSawbladeX 0 0 model.cltMain
 
         plank2 =
             List.singleton <|
-                createPlank leftSawbladeY (parentCltPlank.length - topSawbladeX) topSawbladeX 0 model
+                createPlankFromParent leftSawbladeY (parentCltPlank.length - topSawbladeX) topSawbladeX 0 model.cltMain
 
         plank3 =
             List.singleton <|
-                createPlank (parentCltPlank.width - leftSawbladeY) (parentCltPlank.length - topSawbladeX) topSawbladeX leftSawbladeY model
+                createPlankFromParent (parentCltPlank.width - leftSawbladeY) (parentCltPlank.length - topSawbladeX) topSawbladeX leftSawbladeY model.cltMain
 
         plank4 =
             List.singleton <|
-                createPlank (parentCltPlank.width - leftSawbladeY) topSawbladeX 0 leftSawbladeY model
+                createPlankFromParent (parentCltPlank.width - leftSawbladeY) topSawbladeX 0 leftSawbladeY model.cltMain
 
         planks =
             List.concat [ plank1, plank2, plank3, plank4 ]
@@ -1096,41 +1005,6 @@ updateCltList cltList ncuts cutDir model parentCltPlank =
 
     else
         cltList
-
-
-createPlank : Float -> Float -> Float -> Float -> Model -> CltPlank
-createPlank width length offsetX offsetY model =
-    let
-        parentCltPlank =
-            model.cltMain
-
-        height =
-            parentCltPlank.height
-
-        center =
-            Point3d.toRecord Length.inCentimeters <| calcCenter (upperMeshV width length height) (rawStripMeshV width length height)
-
-        centerPoint =
-            Point3d.xyz
-                (Length.centimeters (center.x + offsetX))
-                (Length.centimeters (center.y + offsetY))
-                (Length.centimeters center.z)
-    in
-    { width = width
-    , length = length
-    , height = height
-    , offsetX = offsetX
-    , offsetY = offsetY
-    , rotationAngleX = parentCltPlank.rotationAngleX
-    , rotationAngleY = parentCltPlank.rotationAngleY
-    , rotationAngleZ = parentCltPlank.rotationAngleZ
-    , centerPoint = centerPoint
-    , cltFrame = Frame3d.atPoint centerPoint
-    , indexedMesh = meshV width length height
-    , stripMesh = stripMeshV width length height
-    , cltTopTexture = parentCltPlank.cltTopTexture
-    , cltSideTexture = parentCltPlank.cltSideTexture
-    }
 
 
 
@@ -1335,25 +1209,6 @@ convertCoords gModel ( x, y ) =
     )
 
 
-getClt : CltPlank -> Scene3d.Entity WorldCoordinates
-getClt clt =
-    let
-        ox =
-            clt.offsetX / 100
-
-        oy =
-            clt.offsetY / 100
-    in
-    Scene3d.group
-        [ Scene3d.mesh (Material.texturedColor clt.cltTopTexture) clt.indexedMesh
-        , Scene3d.mesh (Material.texturedColor clt.cltSideTexture) clt.stripMesh
-        ]
-        |> Scene3d.translateBy (Vector3d.meters ox oy 0)
-        |> Scene3d.rotateAround Axis3d.x clt.rotationAngleX
-        |> Scene3d.rotateAround Axis3d.y clt.rotationAngleY
-        |> Scene3d.rotateAround Axis3d.z clt.rotationAngleZ
-
-
 
 -- This is the main view module responsible for displaying the elements on the HTML browser with the help of JavaScript.
 -- Here it is slightly modified to output a Browser.Document (which includes Html) type instead of Html type because out elm app type is a Browser.document.
@@ -1496,24 +1351,6 @@ view model =
                 (Point3d.centimeters 2560 -2560 -250)
                 (Point3d.centimeters -2560 -2560 -250)
 
-        xMidpoint =
-            Point3d.xCoordinate model.cltMain.centerPoint
-
-        yMidpoint =
-            Point3d.yCoordinate model.cltMain.centerPoint
-
-        zMidpoint =
-            Point3d.zCoordinate model.cltMain.centerPoint
-
-        rotationAxisX =
-            Frame3d.xAxis model.cltMain.cltFrame
-
-        rotationAxisY =
-            Frame3d.yAxis model.cltMain.cltFrame
-
-        rotationAxisZ =
-            Frame3d.zAxis model.cltMain.cltFrame
-
         xAxisCltCylinder =
             Scene3d.cylinder xAxisMaterial <|
                 Cylinder3d.along (Frame3d.xAxis model.cltMain.cltFrame)
@@ -1537,26 +1374,6 @@ view model =
                     , end = Length.centimeters 200
                     , radius = Length.centimeters 0.3
                     }
-
-        cltFrameRef =
-            Scene3d.group
-                [ xAxisCltCylinder
-                , yAxisCltCylinder
-                , zAxisCltCylinder
-                ]
-
-        -- CLT plank
-        cltPlank =
-            Scene3d.group
-                [ Scene3d.mesh (Material.texturedColor model.cltMain.cltTopTexture) model.cltMain.indexedMesh
-                , Scene3d.mesh (Material.texturedColor model.cltMain.cltSideTexture) model.cltMain.stripMesh
-                ]
-                |> Scene3d.rotateAround rotationAxisX model.cltMain.rotationAngleX
-                |> Scene3d.rotateAround rotationAxisY model.cltMain.rotationAngleY
-                |> Scene3d.rotateAround rotationAxisZ model.cltMain.rotationAngleZ
-
-        cltPlankList =
-            List.map getClt model.cltList
 
         guideLine =
             Wrapper3D.cylinder 4 5000 (Material.metal { baseColor = Color.lightRed, roughness = 0.1 })
@@ -1667,10 +1484,10 @@ view model =
                     [ axisReference
                     , xyGrid
                     , if model.isCut then
-                        Scene3d.group cltPlankList
+                        Scene3d.group <| List.map renderCltPlank model.cltList
 
                       else
-                        cltPlank
+                        renderCltPlank model.cltMain
                     , Scene3d.group camp3dEntities
                     ]
                 }

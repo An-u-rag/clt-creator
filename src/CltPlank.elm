@@ -2,23 +2,17 @@ module CltPlank exposing (..)
 
 import Angle exposing (Angle)
 import Array exposing (Array)
-import Axis3d
 import Block3d exposing (axes)
-import Browser
 import Browser.Dom exposing (Viewport, getViewport)
-import Browser.Events
 import Camera3d exposing (Camera3d, viewpoint)
 import Color exposing (Color, black, blue, lightOrange)
 import Cylinder3d exposing (Cylinder3d)
-import Dict
-import Direction3d
 import Duration exposing (Duration)
 import Frame3d exposing (Frame3d)
 import GraphicSVG exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Illuminance
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Extra exposing (andMap)
 import Length exposing (Meters)
@@ -29,13 +23,10 @@ import Scene3d
 import Scene3d.Light as Light exposing (Light)
 import Scene3d.Material as Material exposing (Material)
 import Scene3d.Mesh as Mesh exposing (Mesh)
-import Svg
-import Svg.Attributes as SA
-import Task
 import TriangularMesh exposing (TriangularMesh, vertex)
+import Vector3d exposing (..)
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
-import Wrapper3D
 
 
 
@@ -58,6 +49,29 @@ type alias VertexData =
     { position : Point3d.Point3d Meters WorldCoordinates
     , uv : ( Float, Float )
     }
+
+
+cltTopTextureURL : String
+cltTopTextureURL =
+    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/clt-textures/clt1.png"
+
+
+cltSideTextureURL : String
+cltSideTextureURL =
+    "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/clt-textures/crosssection-2.png"
+
+
+updateCltTexture : CltPlank -> String -> Material.Texture Color.Color -> CltPlank
+updateCltTexture clt attrib value =
+    case attrib of
+        "TopTexture" ->
+            { clt | cltTopTexture = value }
+
+        "SideTexture" ->
+            { clt | cltSideTexture = value }
+
+        _ ->
+            clt
 
 
 
@@ -98,6 +112,78 @@ defaultPlank =
     , cltTopTexture = Material.constant Color.black
     , cltSideTexture = Material.constant Color.black
     }
+
+
+createPlankFromParent : Float -> Float -> Float -> Float -> CltPlank -> CltPlank
+createPlankFromParent width length offsetX offsetY parentCltPlank =
+    let
+        height =
+            parentCltPlank.height
+
+        center =
+            Point3d.toRecord Length.inCentimeters <| calcCenter (upperMeshV width length height) (rawStripMeshV width length height)
+
+        centerPoint =
+            Point3d.xyz
+                (Length.centimeters (center.x + offsetX))
+                (Length.centimeters (center.y + offsetY))
+                (Length.centimeters center.z)
+    in
+    { width = width
+    , length = length
+    , height = height
+    , offsetX = offsetX
+    , offsetY = offsetY
+    , rotationAngleX = parentCltPlank.rotationAngleX
+    , rotationAngleY = parentCltPlank.rotationAngleY
+    , rotationAngleZ = parentCltPlank.rotationAngleZ
+    , centerPoint = centerPoint
+    , cltFrame = Frame3d.atPoint centerPoint
+    , indexedMesh = meshV width length height
+    , stripMesh = stripMeshV width length height
+    , cltTopTexture = parentCltPlank.cltTopTexture
+    , cltSideTexture = parentCltPlank.cltSideTexture
+    }
+
+
+resetPlank : CltPlank -> CltPlank
+resetPlank clt =
+    { width = clt.width
+    , length = clt.length
+    , height = clt.height
+    , offsetX = 0
+    , offsetY = 0
+    , rotationAngleX = Angle.degrees 0
+    , rotationAngleY = Angle.degrees 0
+    , rotationAngleZ = Angle.degrees 0
+    , centerPoint = clt.centerPoint
+    , cltFrame = Frame3d.atPoint clt.centerPoint
+    , indexedMesh = clt.indexedMesh
+    , stripMesh = clt.stripMesh
+    , cltTopTexture = clt.cltTopTexture
+    , cltSideTexture = clt.cltSideTexture
+    }
+
+
+rotateClt : CltPlank -> Char -> CltPlank
+rotateClt clt axis =
+    if axis == 'X' || axis == 'x' then
+        { clt
+            | rotationAngleX = Quantity.plus clt.rotationAngleX (Angle.degrees 90)
+        }
+
+    else if axis == 'Y' || axis == 'y' then
+        { clt
+            | rotationAngleY = Quantity.plus clt.rotationAngleY (Angle.degrees 90)
+        }
+
+    else if axis == 'Z' || axis == 'z' then
+        { clt
+            | rotationAngleZ = Quantity.plus clt.rotationAngleZ (Angle.degrees 90)
+        }
+
+    else
+        clt
 
 
 
@@ -204,7 +290,38 @@ calcCenter uMesh sMesh =
 
 
 
--- deprecated
+-- Render a plank in view
+
+
+renderCltPlank clt =
+    let
+        rotationAxisX =
+            Frame3d.xAxis clt.cltFrame
+
+        rotationAxisY =
+            Frame3d.yAxis clt.cltFrame
+
+        rotationAxisZ =
+            Frame3d.zAxis clt.cltFrame
+
+        ox =
+            clt.offsetX / 100
+
+        oy =
+            clt.offsetY / 100
+    in
+    Scene3d.group
+        [ Scene3d.mesh (Material.texturedColor clt.cltTopTexture) clt.indexedMesh
+        , Scene3d.mesh (Material.texturedColor clt.cltSideTexture) clt.stripMesh
+        ]
+        |> Scene3d.translateBy (Vector3d.meters ox oy 0)
+        |> Scene3d.rotateAround rotationAxisX clt.rotationAngleX
+        |> Scene3d.rotateAround rotationAxisY clt.rotationAngleY
+        |> Scene3d.rotateAround rotationAxisZ clt.rotationAngleZ
+
+
+
+-- Being used for default plank
 
 
 mesh =
