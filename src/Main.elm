@@ -48,6 +48,7 @@ import Scene3d
 import Scene3d.Light as Light exposing (Light)
 import Scene3d.Material as Material exposing (Material)
 import Scene3d.Mesh as Mesh exposing (Mesh)
+import Skybox exposing (..)
 import Svg
 import Svg.Attributes as SA
 import Task
@@ -55,7 +56,7 @@ import TriangularMesh exposing (TriangularMesh, vertex)
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 import Wrapper3D
-import Skybox exposing (..)
+
 
 
 -- INIT
@@ -81,6 +82,22 @@ type AnimationState
     | Ready
     | Camera
     | Cutting
+
+
+
+-- Coordinate definitions
+
+
+type WorldCoordinates
+    = WorldCoordinates
+
+
+type LocalCoordinates
+    = LocalCoordinates
+
+
+type alias CltPlank =
+    CltPlank.CltPlank WorldCoordinates LocalCoordinates
 
 
 slider : Char -> Float -> Float -> Float -> Html Msg
@@ -528,7 +545,8 @@ type alias Model =
     , cltList : List CltPlank
     , gridTexture : Material.Texture Color.Color
     , skyboxTexture : Material.Texture Color.Color
---    , skybox : Scene3d.Entity WorldCoordinates
+
+    --    , skybox : Scene3d.Entity WorldCoordinates
     }
 
 
@@ -549,6 +567,8 @@ init () =
         height =
             30
 
+        -- TODO meshV, stripMeshV, etc. all need more descriptive names if they aren't going to be local.
+        -- Ideally they would also be trimmed down a bit, since some of these functions don't seem necessary.
         indexedMesh =
             meshV width length height
 
@@ -638,6 +658,8 @@ gridTextureURL =
 skyboxTextureURL : String
 skyboxTextureURL =
     "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/warehouseTexture.png"
+
+
 
 -- UPDATE
 -- This datatype acts like a messgae/action handler for changing state (or updating) the current state of our app.
@@ -1497,9 +1519,16 @@ view model =
                       else
                         renderCltPlank model.cltMain
                     , Scene3d.group camp3dEntities
-                    , roundSkybox ( if True then Just model.skyboxTexture else Nothing) 100000 
+                    , roundSkybox
+                        (if True then
+                            Just model.skyboxTexture
+
+                         else
+                            Nothing
+                        )
+                        100000
                     ]
-                }   
+                }
             , createCollage collageWidth collageHeight <| myShapes model
 
             --, p [ style "margin" "0px", style "padding" "0px" ] [ Html.text <| Debug.toString model.cltList ]

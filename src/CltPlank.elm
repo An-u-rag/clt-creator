@@ -1,4 +1,4 @@
-module CltPlank exposing (..)
+module CltPlank exposing (updateCltTexture, cltTopTextureURL, cltSideTextureURL, defaultPlank, createPlankFromParent, resetPlank, rotateClt, renderCltPlank, CltPlank)
 
 import Angle exposing (Angle)
 import Array exposing (Array)
@@ -29,25 +29,35 @@ import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
 
 
-
--- Type to handle world coordinates in the 3d scene.
-
-
-type WorldCoordinates
-    = WorldCoordinates
+type alias Frame worldCoordinates localCoordinates =
+    Frame3d Meters worldCoordinates { defines : localCoordinates }
 
 
-type LocalCoordinates
-    = LocalCoordinates
-
-
-type alias Frame =
-    Frame3d Meters WorldCoordinates { defines : LocalCoordinates }
-
-
-type alias VertexData =
-    { position : Point3d.Point3d Meters WorldCoordinates
+type alias VertexData coordinates =
+    { position : Point3d.Point3d Meters coordinates
     , uv : ( Float, Float )
+    }
+
+
+
+-- Clt Model to hold all values related to that clt entity.
+
+
+type alias CltPlank worldCoordinates localCoordinates =
+    { width : Float
+    , length : Float
+    , height : Float
+    , offsetX : Float
+    , offsetY : Float
+    , rotationAngleX : Angle
+    , rotationAngleY : Angle
+    , rotationAngleZ : Angle
+    , centerPoint : Point3d Meters worldCoordinates
+    , cltFrame : Frame worldCoordinates localCoordinates
+    , indexedMesh : Mesh.Unlit worldCoordinates
+    , stripMesh : Mesh.Unlit worldCoordinates
+    , cltTopTexture : Material.Texture Color.Color
+    , cltSideTexture : Material.Texture Color.Color
     }
 
 
@@ -61,7 +71,7 @@ cltSideTextureURL =
     "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/clt-textures/crosssection-2.png"
 
 
-updateCltTexture : CltPlank -> String -> Material.Texture Color.Color -> CltPlank
+updateCltTexture : CltPlank worldCoordinates localCoordinates -> String -> Material.Texture Color.Color -> CltPlank worldCoordinates localCoordinates
 updateCltTexture clt attrib value =
     case attrib of
         "TopTexture" ->
@@ -74,28 +84,7 @@ updateCltTexture clt attrib value =
             clt
 
 
-
--- Clt Model to hold all values related to that clt entity.
-
-
-type alias CltPlank =
-    { width : Float
-    , length : Float
-    , height : Float
-    , offsetX : Float
-    , offsetY : Float
-    , rotationAngleX : Angle
-    , rotationAngleY : Angle
-    , rotationAngleZ : Angle
-    , centerPoint : Point3d Meters WorldCoordinates
-    , cltFrame : Frame
-    , indexedMesh : Mesh.Unlit WorldCoordinates
-    , stripMesh : Mesh.Unlit WorldCoordinates
-    , cltTopTexture : Material.Texture Color.Color
-    , cltSideTexture : Material.Texture Color.Color
-    }
-
-
+defaultPlank : CltPlank worldCoordinates localCoordinates
 defaultPlank =
     { width = 0
     , length = 0
@@ -114,7 +103,7 @@ defaultPlank =
     }
 
 
-createPlankFromParent : Float -> Float -> Float -> Float -> CltPlank -> CltPlank
+createPlankFromParent : Float -> Float -> Float -> Float -> CltPlank worldCoordinates localCoordinates -> CltPlank worldCoordinates localCoordinates
 createPlankFromParent width length offsetX offsetY parentCltPlank =
     let
         height =
@@ -146,7 +135,7 @@ createPlankFromParent width length offsetX offsetY parentCltPlank =
     }
 
 
-resetPlank : CltPlank -> CltPlank
+resetPlank : CltPlank worldCoordinates localCoordinates -> CltPlank worldCoordinates localCoordinates
 resetPlank clt =
     { width = clt.width
     , length = clt.length
@@ -165,7 +154,7 @@ resetPlank clt =
     }
 
 
-rotateClt : CltPlank -> Char -> CltPlank
+rotateClt : CltPlank worldCoordinates localCoordinates -> Char -> CltPlank worldCoordinates localCoordinates
 rotateClt clt axis =
     if axis == 'X' || axis == 'x' then
         { clt
@@ -191,11 +180,13 @@ rotateClt clt axis =
 -- The combined mesh is made up of two triangular meshes of indexed and strip respectively.
 
 
+meshV : Float -> Float -> Float -> Mesh.Unlit coordinates
 meshV width length height =
     Mesh.texturedTriangles <|
         TriangularMesh.combine [ upperMeshV width length height, lowerMeshV width length ]
 
 
+upperMeshV : Float -> Float -> Float -> TriangularMesh (VertexData coordinates)
 upperMeshV width length height =
     TriangularMesh.indexed
         (Array.fromList
@@ -211,6 +202,7 @@ upperMeshV width length height =
         ]
 
 
+lowerMeshV : Float -> Float -> TriangularMesh (VertexData coordinates)
 lowerMeshV width length =
     TriangularMesh.indexed
         (Array.fromList
@@ -226,6 +218,7 @@ lowerMeshV width length =
         ]
 
 
+rawStripMeshV : Float -> Float -> Float -> TriangularMesh (VertexData coordinates)
 rawStripMeshV width length height =
     TriangularMesh.strip
         [ { position = Point3d.centimeters 0 0 height, uv = ( 0.0, 0.0 ) } -- 0
@@ -242,11 +235,12 @@ rawStripMeshV width length height =
         ]
 
 
+stripMeshV : Float -> Float -> Float -> Mesh.Unlit coordinates
 stripMeshV width length height =
     Mesh.texturedTriangles <| rawStripMeshV width length height
 
 
-addVertices : Maybe VertexData -> Maybe VertexData -> Point3d Meters WorldCoordinates
+addVertices : Maybe (VertexData worldCoordinates) -> Maybe (VertexData worldCoordinates) -> Point3d Meters worldCoordinates
 addVertices a b =
     let
         ea =
@@ -262,7 +256,7 @@ addVertices a b =
     Point3d.midpoint ea.position eb.position
 
 
-calcCenter : TriangularMesh VertexData -> TriangularMesh VertexData -> Point3d Meters WorldCoordinates
+calcCenter : TriangularMesh (VertexData worldCoordinates) -> TriangularMesh (VertexData worldCoordinates) -> Point3d Meters worldCoordinates
 calcCenter uMesh sMesh =
     let
         a =
@@ -293,6 +287,7 @@ calcCenter uMesh sMesh =
 -- Render a plank in view
 
 
+renderCltPlank : CltPlank worldCoordinates localCoordinates -> Scene3d.Entity worldCoordinates
 renderCltPlank clt =
     let
         rotationAxisX =
@@ -324,11 +319,13 @@ renderCltPlank clt =
 -- Being used for default plank
 
 
+mesh : Mesh.Unlit coordinates
 mesh =
     Mesh.texturedTriangles <|
         TriangularMesh.combine [ upperMesh, lowerMesh ]
 
 
+upperMesh : TriangularMesh (VertexData coordinates)
 upperMesh =
     TriangularMesh.indexed
         (Array.fromList
@@ -344,6 +341,7 @@ upperMesh =
         ]
 
 
+lowerMesh : TriangularMesh (VertexData coordinates)
 lowerMesh =
     TriangularMesh.indexed
         (Array.fromList
@@ -359,6 +357,7 @@ lowerMesh =
         ]
 
 
+rawStripMesh : TriangularMesh (VertexData coordinates)
 rawStripMesh =
     TriangularMesh.strip
         [ { position = Point3d.centimeters 0 0 4, uv = ( 0.0, 0.0 ) } -- 0
@@ -375,5 +374,6 @@ rawStripMesh =
         ]
 
 
+stripMesh : Mesh.Unlit coordinates
 stripMesh =
     Mesh.texturedTriangles <| rawStripMesh
