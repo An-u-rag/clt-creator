@@ -463,7 +463,7 @@ spokes counter angle =
 
     else
         Wrapper3D.group3D
-            [ Wrapper3D.polyCylinder [ ( -19.81, 35.207 ), ( -8.694, 38.628 ), ( -11.54, 39.198 ), ( -12.97, 40.623 ), ( -12.68, 46.04 ), ( -19.81, 41.763 ), ( -19.81, 35.207 ) ] 4 { generatedMeshes = Dict.empty, generatedShadows = Dict.empty }
+            [ Wrapper3D.polyCylinder [ ( -19.81, 35.207 ), ( -8.694, 38.628 ), ( -11.54, 39.198 ), ( -12.97, 40.623 ), ( -12.68, 46.04 ), ( -19.81, 41.763 ), ( -19.81, 35.207 ) ] 5 { generatedMeshes = Dict.empty, generatedShadows = Dict.empty }
                 |> Wrapper3D.metallic Color.darkGray 0.1
                 |> Wrapper3D.rotateY3D (degrees 90)
                 |> Wrapper3D.rotateX3D (degrees (angle * counter))
@@ -614,7 +614,7 @@ init () =
             }
       , cltList = []
       , gridTexture = Material.constant Color.black
-      , skyboxTexture = Material.constant Color.brown
+      , skyboxTexture = Material.constant Color.black
       }
     , Cmd.batch
         [ getViewportSize
@@ -1406,7 +1406,7 @@ view model =
 
         sawBlade =
             Wrapper3D.group3D
-                [ Wrapper3D.cylinder 40 4 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
+                [ Wrapper3D.cylinder 41.5 4.5 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
                     |> Wrapper3D.scale3D 4
                 , spokes 16 (360 / 16)
                     |> Wrapper3D.scale3D 4
