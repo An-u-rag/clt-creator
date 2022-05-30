@@ -67,3 +67,5 @@ Commit 9:
 - Added Camera animations. 
 - Added Projection States with 3 different projections apt for CAD tools. 
 - Perspective, Orthographic and Isometric projections have been added. 
+- Added a Skybox Texture around the 3D Scene
+- Code Generation added and works for rotations of cut planks as well. 
