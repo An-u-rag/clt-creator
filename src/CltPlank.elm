@@ -1,4 +1,4 @@
-module CltPlank exposing (updateCltTexture, cltTopTextureURL, cltSideTextureURL, defaultPlank, createPlankFromParent, resetPlank, rotateClt, renderCltPlank, CltPlank)
+module CltPlank exposing (CltPlank, cltSideTextureURL, cltTopTextureURL, createCltPlank, createCltPlankFromParent, defaultPlank, getCenterPoint, renderCltPlank, resetPlank, rotateClt, updateCltTexture)
 
 import Angle exposing (Angle)
 import Array exposing (Array)
@@ -103,14 +103,48 @@ defaultPlank =
     }
 
 
-createPlankFromParent : Float -> Float -> Float -> Float -> CltPlank worldCoordinates localCoordinates -> CltPlank worldCoordinates localCoordinates
-createPlankFromParent width length offsetX offsetY parentCltPlank =
+createCltPlank : Float -> Float -> Float -> CltPlank worldCoordinates localCoordinates
+createCltPlank width length height =
+    let
+        mainIndexedMesh =
+            cltPlankMeshV width length height
+
+        mainStripMesh =
+            cltPlankStripMeshV width length height
+
+        centerPoint =
+            calculateCltPlankCenter (cltPlankXYUpperMeshV width length height) (cltPlankRawStripMeshV width length height)
+    in
+    { width = width
+    , length = length
+    , height = height
+    , offsetX = 0
+    , offsetY = 0
+    , rotationAngleX = Angle.degrees 0
+    , rotationAngleY = Angle.degrees 0
+    , rotationAngleZ = Angle.degrees 0
+    , centerPoint = centerPoint
+    , cltFrame = Frame3d.atPoint centerPoint
+    , indexedMesh = mainIndexedMesh
+    , stripMesh = mainStripMesh
+    , cltTopTexture = Material.constant Color.black
+    , cltSideTexture = Material.constant Color.black
+    }
+
+
+getCenterPoint : CltPlank worldCoordinates localCoordinates -> Point3d Meters worldCoordinates
+getCenterPoint clt =
+    clt.centerPoint
+
+
+createCltPlankFromParent : Float -> Float -> Float -> Float -> CltPlank worldCoordinates localCoordinates -> CltPlank worldCoordinates localCoordinates
+createCltPlankFromParent width length offsetX offsetY parentCltPlank =
     let
         height =
             parentCltPlank.height
 
         center =
-            Point3d.toRecord Length.inCentimeters <| calcCenter (upperMeshV width length height) (rawStripMeshV width length height)
+            Point3d.toRecord Length.inCentimeters <| calculateCltPlankCenter (cltPlankXYUpperMeshV width length height) (cltPlankRawStripMeshV width length height)
 
         centerPoint =
             Point3d.xyz
@@ -128,8 +162,8 @@ createPlankFromParent width length offsetX offsetY parentCltPlank =
     , rotationAngleZ = parentCltPlank.rotationAngleZ
     , centerPoint = centerPoint
     , cltFrame = Frame3d.atPoint centerPoint
-    , indexedMesh = meshV width length height
-    , stripMesh = stripMeshV width length height
+    , indexedMesh = cltPlankMeshV width length height
+    , stripMesh = cltPlankStripMeshV width length height
     , cltTopTexture = parentCltPlank.cltTopTexture
     , cltSideTexture = parentCltPlank.cltSideTexture
     }
@@ -180,14 +214,14 @@ rotateClt clt axis =
 -- The combined mesh is made up of two triangular meshes of indexed and strip respectively.
 
 
-meshV : Float -> Float -> Float -> Mesh.Unlit coordinates
-meshV width length height =
+cltPlankMeshV : Float -> Float -> Float -> Mesh.Unlit coordinates
+cltPlankMeshV width length height =
     Mesh.texturedTriangles <|
-        TriangularMesh.combine [ upperMeshV width length height, lowerMeshV width length ]
+        TriangularMesh.combine [ cltPlankXYUpperMeshV width length height, cltPlankXYLowerMeshV width length ]
 
 
-upperMeshV : Float -> Float -> Float -> TriangularMesh (VertexData coordinates)
-upperMeshV width length height =
+cltPlankXYUpperMeshV : Float -> Float -> Float -> TriangularMesh (VertexData coordinates)
+cltPlankXYUpperMeshV width length height =
     TriangularMesh.indexed
         (Array.fromList
             [ { position = Point3d.centimeters 0 0 height, uv = ( 0.0, 0.0 ) } -- 0
@@ -202,8 +236,8 @@ upperMeshV width length height =
         ]
 
 
-lowerMeshV : Float -> Float -> TriangularMesh (VertexData coordinates)
-lowerMeshV width length =
+cltPlankXYLowerMeshV : Float -> Float -> TriangularMesh (VertexData coordinates)
+cltPlankXYLowerMeshV width length =
     TriangularMesh.indexed
         (Array.fromList
             [ { position = Point3d.centimeters 0 0 0, uv = ( 0.0, 0.0 ) } -- 0
@@ -218,8 +252,8 @@ lowerMeshV width length =
         ]
 
 
-rawStripMeshV : Float -> Float -> Float -> TriangularMesh (VertexData coordinates)
-rawStripMeshV width length height =
+cltPlankRawStripMeshV : Float -> Float -> Float -> TriangularMesh (VertexData coordinates)
+cltPlankRawStripMeshV width length height =
     TriangularMesh.strip
         [ { position = Point3d.centimeters 0 0 height, uv = ( 0.0, 0.0 ) } -- 0
         , { position = Point3d.centimeters length 0 height, uv = ( 1.0, 0.0 ) } -- 1
@@ -235,13 +269,13 @@ rawStripMeshV width length height =
         ]
 
 
-stripMeshV : Float -> Float -> Float -> Mesh.Unlit coordinates
-stripMeshV width length height =
-    Mesh.texturedTriangles <| rawStripMeshV width length height
+cltPlankStripMeshV : Float -> Float -> Float -> Mesh.Unlit coordinates
+cltPlankStripMeshV width length height =
+    Mesh.texturedTriangles <| cltPlankRawStripMeshV width length height
 
 
-addVertices : Maybe (VertexData worldCoordinates) -> Maybe (VertexData worldCoordinates) -> Point3d Meters worldCoordinates
-addVertices a b =
+getMidpointOfVertices : Maybe (VertexData worldCoordinates) -> Maybe (VertexData worldCoordinates) -> Point3d Meters worldCoordinates
+getMidpointOfVertices a b =
     let
         ea =
             Maybe.withDefault
@@ -256,8 +290,8 @@ addVertices a b =
     Point3d.midpoint ea.position eb.position
 
 
-calcCenter : TriangularMesh (VertexData worldCoordinates) -> TriangularMesh (VertexData worldCoordinates) -> Point3d Meters worldCoordinates
-calcCenter uMesh sMesh =
+calculateCltPlankCenter : TriangularMesh (VertexData worldCoordinates) -> TriangularMesh (VertexData worldCoordinates) -> Point3d Meters worldCoordinates
+calculateCltPlankCenter uMesh sMesh =
     let
         a =
             TriangularMesh.vertex 0 uMesh
@@ -272,13 +306,13 @@ calcCenter uMesh sMesh =
             TriangularMesh.vertex 3 sMesh
 
         cx =
-            Point3d.xCoordinate (addVertices a b)
+            Point3d.xCoordinate (getMidpointOfVertices a b)
 
         cy =
-            Point3d.yCoordinate (addVertices a d)
+            Point3d.yCoordinate (getMidpointOfVertices a d)
 
         cz =
-            Point3d.zCoordinate (addVertices a e)
+            Point3d.zCoordinate (getMidpointOfVertices a e)
     in
     Point3d.xyz cx cy cz
 

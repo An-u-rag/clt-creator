@@ -567,16 +567,11 @@ init () =
         height =
             30
 
+        cltMain =
+            createCltPlank width length height
+
         -- TODO meshV, stripMeshV, etc. all need more descriptive names if they aren't going to be local.
         -- Ideally they would also be trimmed down a bit, since some of these functions don't seem necessary.
-        indexedMesh =
-            meshV width length height
-
-        stripMesh =
-            stripMeshV width length height
-
-        centerPoint =
-            calcCenter (upperMeshV width length height) (rawStripMeshV width length height)
     in
     -- In the init functio nwe store the previously created mesh and other values since creation of a mesh is an expensive operation
     --   and changing the mesh frequently causes optimization issues.
@@ -602,34 +597,19 @@ init () =
       , isOrbiting = False
       , isOrbitBlock = False
       , sawBladeTop =
-            { x = .x <| Point3d.toRecord Length.inCentimeters centerPoint
-            , y = (+) 300 <| (*) 2 <| .y <| Point3d.toRecord Length.inCentimeters centerPoint
-            , z = .z <| Point3d.toRecord Length.inCentimeters centerPoint
+            { x = .x <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
+            , y = (+) 300 <| (*) 2 <| .y <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
+            , z = .z <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
             }
       , sawBladeLeft =
-            { x = (-) 1500 <| (*) 2 <| .x <| Point3d.toRecord Length.inCentimeters centerPoint
-            , y = .y <| Point3d.toRecord Length.inCentimeters centerPoint
-            , z = .z <| Point3d.toRecord Length.inCentimeters centerPoint
+            { x = (-) 1500 <| (*) 2 <| .x <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
+            , y = .y <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
+            , z = .z <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
             }
       , isCut = False
       , cutDir = ' '
       , numCuts = 0
-      , cltMain =
-            { width = width
-            , length = length
-            , height = height
-            , offsetX = 0
-            , offsetY = 0
-            , rotationAngleX = Angle.degrees 0
-            , rotationAngleY = Angle.degrees 0
-            , rotationAngleZ = Angle.degrees 0
-            , centerPoint = centerPoint
-            , cltFrame = Frame3d.atPoint centerPoint
-            , indexedMesh = indexedMesh
-            , stripMesh = stripMesh
-            , cltTopTexture = Material.constant Color.black
-            , cltSideTexture = Material.constant Color.black
-            }
+      , cltMain = cltMain
       , cltList = []
       , gridTexture = Material.constant Color.black
       , skyboxTexture = Material.constant Color.brown
@@ -1008,19 +988,19 @@ updateCltList cltList ncuts cutDir model parentCltPlank =
 
         plank1 =
             List.singleton <|
-                createPlankFromParent leftSawbladeY topSawbladeX 0 0 model.cltMain
+                createCltPlankFromParent leftSawbladeY topSawbladeX 0 0 model.cltMain
 
         plank2 =
             List.singleton <|
-                createPlankFromParent leftSawbladeY (parentCltPlank.length - topSawbladeX) topSawbladeX 0 model.cltMain
+                createCltPlankFromParent leftSawbladeY (parentCltPlank.length - topSawbladeX) topSawbladeX 0 model.cltMain
 
         plank3 =
             List.singleton <|
-                createPlankFromParent (parentCltPlank.width - leftSawbladeY) (parentCltPlank.length - topSawbladeX) topSawbladeX leftSawbladeY model.cltMain
+                createCltPlankFromParent (parentCltPlank.width - leftSawbladeY) (parentCltPlank.length - topSawbladeX) topSawbladeX leftSawbladeY model.cltMain
 
         plank4 =
             List.singleton <|
-                createPlankFromParent (parentCltPlank.width - leftSawbladeY) topSawbladeX 0 leftSawbladeY model.cltMain
+                createCltPlankFromParent (parentCltPlank.width - leftSawbladeY) topSawbladeX 0 leftSawbladeY model.cltMain
 
         planks =
             List.concat [ plank1, plank2, plank3, plank4 ]
