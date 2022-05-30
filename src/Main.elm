@@ -48,14 +48,15 @@ import Scene3d
 import Scene3d.Light as Light exposing (Light)
 import Scene3d.Material as Material exposing (Material)
 import Scene3d.Mesh as Mesh exposing (Mesh)
+import Skybox exposing (..)
 import Svg
 import Svg.Attributes as SA
 import Task
 import TriangularMesh exposing (TriangularMesh, vertex)
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
-import Wrapper3D
-import Skybox exposing (..)
+import Wrapper3D exposing (arrowStartingAt, group3D)
+
 
 
 -- INIT
@@ -168,8 +169,8 @@ myShapes model =
 
     --  , textBox 30 5 False False [ "Play" ] |> move ( -80, 60 ) |> notifyTap AnimationToggle
     , animationButton model |> move ( 112.5, 56 ) |> notifyTap AnimationToggle
-    , GraphicSVG.text "CLT" |> fixedwidth |> bold |> GraphicSVG.size 9 |> filled GraphicSVG.darkBlue |> move ( -130, 55 )
-    , GraphicSVG.text "Creator" |> fixedwidth |> bold |> GraphicSVG.size 4 |> filled GraphicSVG.darkBlue |> move ( -130, 50 )
+    , GraphicSVG.text "CLT" |> fixedwidth |> bold |> GraphicSVG.size 9 |> filled (GraphicSVG.hsl 10 1.0 (abs (sin (1 * model.time)) + 0.2)) |> move ( -130, 55 )
+    , GraphicSVG.text "Creator" |> fixedwidth |> bold |> GraphicSVG.size 4 |> filled (GraphicSVG.hsl 10 1.0 (abs (sin (1 * model.time)) + 0.2)) |> move ( -130, 50 )
     , yourCode model
     , if model.elevation == Angle.degrees 90 && model.focusAt /= Point3d.meters 0 0 0 then
         cutterUI model
@@ -528,7 +529,8 @@ type alias Model =
     , cltList : List CltPlank
     , gridTexture : Material.Texture Color.Color
     , skyboxTexture : Material.Texture Color.Color
---    , skybox : Scene3d.Entity WorldCoordinates
+
+    --    , skybox : Scene3d.Entity WorldCoordinates
     }
 
 
@@ -638,6 +640,8 @@ gridTextureURL =
 skyboxTextureURL : String
 skyboxTextureURL =
     "https://raw.githubusercontent.com/An-u-rag/elm-3d-clt-playground/main/warehouseTexture.png"
+
+
 
 -- UPDATE
 -- This datatype acts like a messgae/action handler for changing state (or updating) the current state of our app.
@@ -1412,7 +1416,7 @@ view model =
                 , guideLine
                 ]
 
-        updatedPosition =
+        updatedPositionY =
             if model.animationState == Cutting && model.isCut then
                 let
                     translationRate =
@@ -1433,6 +1437,100 @@ view model =
             else
                 0
 
+        updatedPositionX =
+            if model.animationState == Cutting && model.isCut then
+                let
+                    translationRate =
+                        400
+
+                    updatedPos =
+                        translationRate * model.time
+                in
+                if model.sawBladeTop.y > updatedPos then
+                    updatedPos
+
+                else if model.sawBladeTop.y <= updatedPos then
+                    0
+
+                else
+                    updatedPos
+
+            else
+                0
+
+        cutArrowStartX =
+            let
+                centerpoint =
+                    Point3d.toRecord Length.inCentimeters model.cltMain.centerPoint
+
+                toQuantity =
+                    Length.centimeters
+            in
+            Point3d.xyz (toQuantity model.sawBladeTop.x) (toQuantity (2 * centerpoint.y)) (toQuantity (15 + centerpoint.z))
+
+        cutArrowStartY =
+            let
+                centerpoint =
+                    Point3d.toRecord Length.inCentimeters model.cltMain.centerPoint
+
+                toQuantity =
+                    Length.centimeters
+            in
+            Point3d.xyz (toQuantity 0) (toQuantity model.sawBladeLeft.y) (toQuantity (15 + centerpoint.z))
+
+        cutArrowLines =
+            let
+                lengthX =
+                    Length.centimeters
+                        (if model.animationState /= Cutting || updatedPositionX == 0 then
+                            model.cltMain.width
+
+                         else if updatedPositionX >= (model.sawBladeTop.y - model.cltMain.width) then
+                            updatedPositionX - (model.sawBladeTop.y - model.cltMain.width)
+
+                         else
+                            0
+                        )
+
+                lengthY =
+                    Length.centimeters
+                        (if model.animationState /= Cutting || updatedPositionY == 0 then
+                            model.cltMain.length
+
+                         else if updatedPositionY >= abs model.sawBladeLeft.x then
+                            updatedPositionY - abs model.sawBladeLeft.x
+
+                         else
+                            0
+                        )
+            in
+            Wrapper3D.group3D <|
+                if model.isCut && model.cutDir == 'X' then
+                    [ arrowStartingAt cutArrowStartX
+                        Direction3d.negativeY
+                        { radius = Length.centimeters 8
+                        , length = lengthX
+                        }
+                        (Material.nonmetal { baseColor = Color.black, roughness = 0.1 })
+                    ]
+
+                else if model.isCut && model.cutDir == 'Y' then
+                    [ arrowStartingAt cutArrowStartY
+                        Direction3d.positiveX
+                        { radius = Length.centimeters 8
+                        , length = lengthY
+                        }
+                        (Material.nonmetal { baseColor = Color.black, roughness = 0.1 })
+                    ]
+
+                else if model.isCut then
+                    [ arrowStartingAt cutArrowStartY Direction3d.positiveX { radius = Length.centimeters 8, length = lengthY } (Material.nonmetal { baseColor = Color.black, roughness = 0.1 })
+                    , arrowStartingAt cutArrowStartX Direction3d.negativeY { radius = Length.centimeters 8, length = lengthX } (Material.nonmetal { baseColor = Color.black, roughness = 0.1 })
+                    ]
+
+                else
+                    []
+
         -- translationRate |> Quantity.for model.time |> Quantity.negate |> Length.inCentimeters
         camp3dEntities =
             Wrapper3D.renderEntities
@@ -1449,7 +1547,7 @@ view model =
                                 0
 
                                else
-                                updatedPosition
+                                updatedPositionX
                               )
                         , model.sawBladeTop.z
                         )
@@ -1464,11 +1562,12 @@ view model =
                                 0
 
                                else
-                                updatedPosition
+                                updatedPositionY
                               )
                         , model.sawBladeLeft.y
                         , model.sawBladeLeft.z
                         )
+                , cutArrowLines
                 ]
     in
     -- General structure for writing HTML in document type in elm.
@@ -1497,12 +1596,19 @@ view model =
                       else
                         renderCltPlank model.cltMain
                     , Scene3d.group camp3dEntities
-                    , roundSkybox ( if True then Just model.skyboxTexture else Nothing) 100000 
+                    , roundSkybox
+                        (if True then
+                            Just model.skyboxTexture
+
+                         else
+                            Nothing
+                        )
+                        100000
                     ]
-                }   
+                }
             , createCollage collageWidth collageHeight <| myShapes model
 
-            --, p [ style "margin" "0px", style "padding" "0px" ] [ Html.text <| Debug.toString model.cltList ]
+            --, p [ style "margin" "0px", style "padding" "0px" ] [ Html.text <| Debug.toString updatedPositionX ]
             ]
         ]
     }
