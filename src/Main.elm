@@ -226,21 +226,25 @@ codeGen cltList =
                     group
                         [ GraphicSVG.text (plankMeshCode clt)
                             |> GraphicSVG.size 2.5
+                            |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
                             |> move ( -128, 6 )
                         , GraphicSVG.text (plankRot "X" clt)
                             |> GraphicSVG.size 2.5
+                            |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
                             |> move ( -122, 3 )
                         , GraphicSVG.text (plankRot "Y" clt)
                             |> GraphicSVG.size 2.5
+                            |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
                             |> move ( -122, 0 )
                         , GraphicSVG.text (plankRot "Z" clt)
                             |> GraphicSVG.size 2.5
+                            |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
                             |> move ( -122, -3 )
