@@ -185,6 +185,7 @@ myShapes model =
     , animationButton model |> move ( 112.5, 56 ) |> notifyTap AnimationToggle
     , GraphicSVG.text "CLT" |> fixedwidth |> bold |> GraphicSVG.size 9 |> filled (GraphicSVG.hsl 10 1.0 (abs (sin (1 * model.time)) + 0.2)) |> move ( -130, 55 )
     , GraphicSVG.text "Creator" |> fixedwidth |> bold |> GraphicSVG.size 4 |> filled (GraphicSVG.hsl 10 1.0 (abs (sin (1 * model.time)) + 0.2)) |> move ( -130, 50 )
+    , GraphicSVG.text "Your Code" |> fixedwidth |> bold |> GraphicSVG.size 4 |> filled white |> move ( -130, 32 )
     , yourCode model
     , if model.elevation == Angle.degrees 90 && model.focusAt /= Point3d.meters 0 0 0 then
         cutterUI model
@@ -208,11 +209,11 @@ cuttingBox model =
 
 yourCode model =
     group
-        [ rect 40 60
+        [ rect 50 80
             |> filled white
             |> makeTransparent 0.8
             |> addOutline (solid 0.3) darkBlue
-            |> move ( -110, -20 )
+            |> move ( -105, -10 )
         , if model.isCut then
             codeGen model.cltList
 
@@ -228,7 +229,7 @@ codeGen cltList =
             List.map2 (\y clt -> clt |> move ( 0, -y )) [ 0 ]
 
          else
-            List.map2 (\y clt -> clt |> move ( 0, -y )) [ 0, 12, 24, 36 ]
+            List.map2 (\y clt -> clt |> move ( 0, -y )) [ 0, 20, 40, 60 ]
         )
         <|
             List.map
@@ -239,38 +240,61 @@ codeGen cltList =
                             |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
-                            |> move ( -128, 6 )
+                            |> move ( -129, 27 )
+                        , GraphicSVG.text (reqCode1)
+                            |> GraphicSVG.size 2.5
+                            |> selectable
+                            |> customFont "monospace"
+                            |> filled darkBlue
+                            |> move ( -125, 24 )
+                        , GraphicSVG.text (reqCode2 clt)
+                            |> GraphicSVG.size 2.5
+                            |> selectable
+                            |> customFont "monospace"
+                            |> filled darkBlue
+                            |> move ( -125, 21 )
                         , GraphicSVG.text (plankRot "X" clt)
                             |> GraphicSVG.size 2.5
                             |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
-                            |> move ( -122, 3 )
+                            |> move ( -125, 18 )
                         , GraphicSVG.text (plankRot "Y" clt)
                             |> GraphicSVG.size 2.5
                             |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
-                            |> move ( -122, 0 )
+                            |> move ( -125, 15 )
                         , GraphicSVG.text (plankRot "Z" clt)
                             |> GraphicSVG.size 2.5
                             |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
-                            |> move ( -122, -3 )
+                            |> move ( -125, 12 )
                         ]
                 )
                 cltList
 
 
-plankMeshCode clt =
-    "CltPlank "
+plankMeshCode clt = 
+    "createCltPlank "
         ++ Debug.toString clt.width
         ++ " "
         ++ Debug.toString clt.length
         ++ " "
         ++ Debug.toString clt.height
 
+reqCode1 = 
+        "|> renderCltPlank"         
+        
+reqCode2 clt = 
+        "|> fromEntity ("
+        ++ Debug.toString clt.width
+        ++ ", "
+        ++ Debug.toString clt.length
+        ++ ", "
+        ++ Debug.toString clt.height
+        ++ ")"
 
 plankRot dir clt =
     case dir of
@@ -279,27 +303,31 @@ plankRot dir clt =
                 ""
 
             else
-                "|> RotX "
+                "|> rotateX3D (degrees "
                     ++ Debug.toString (Angle.inDegrees clt.rotationAngleX)
+                    ++ ")"
 
         "Y" ->
             if clt.rotationAngleY == Angle.degrees 0 then
                 ""
 
             else
-                "|> RotY "
+                "|> rotateY3D (degrees "
                     ++ Debug.toString (Angle.inDegrees clt.rotationAngleY)
+                    ++ ")"
 
         "Z" ->
             if clt.rotationAngleZ == Angle.degrees 0 then
                 ""
 
             else
-                "|> RotZ "
+                 "|> rotateZ3D (degrees "
                     ++ Debug.toString (Angle.inDegrees clt.rotationAngleZ)
+                    ++ ")"
 
         _ ->
             ""
+
 
 
 
@@ -493,7 +521,7 @@ spokes counter angle =
 
     else
         Wrapper3D.group3D
-            [ Wrapper3D.polyCylinder [ ( -19.81, 35.207 ), ( -8.694, 38.628 ), ( -11.54, 39.198 ), ( -12.97, 40.623 ), ( -12.68, 46.04 ), ( -19.81, 41.763 ), ( -19.81, 35.207 ) ] 4 { generatedMeshes = Dict.empty, generatedShadows = Dict.empty }
+            [ Wrapper3D.polyCylinder [ ( -19.81, 35.207 ), ( -8.694, 38.628 ), ( -11.54, 39.198 ), ( -12.97, 40.623 ), ( -12.68, 46.04 ), ( -19.81, 41.763 ), ( -19.81, 35.207 ) ] 5 { generatedMeshes = Dict.empty, generatedShadows = Dict.empty }
                 |> Wrapper3D.metallic Color.darkGray 0.1
                 |> Wrapper3D.rotateY3D (degrees 90)
                 |> Wrapper3D.rotateX3D (degrees (angle * counter))
@@ -623,7 +651,7 @@ init () =
       , cltMain = cltMain
       , cltList = []
       , gridTexture = Material.constant Color.black
-      , skyboxTexture = Material.constant Color.brown
+      , skyboxTexture = Material.constant Color.black
       }
     , Cmd.batch
         [ getViewportSize
@@ -1415,7 +1443,7 @@ view model =
 
         sawBlade =
             Wrapper3D.group3D
-                [ Wrapper3D.cylinder 40 4 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
+                [ Wrapper3D.cylinder 41.5 4.5 (Material.metal { baseColor = Color.darkGray, roughness = 0.1 })
                     |> Wrapper3D.scale3D 4
                 , spokes 16 (360 / 16)
                     |> Wrapper3D.scale3D 4
