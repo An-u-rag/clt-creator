@@ -47,7 +47,7 @@ import Quantity exposing (Quantity)
 import Scene3d
 import Scene3d.Light as Light exposing (Light)
 import Scene3d.Material as Material exposing (Material)
-import Scene3d.Mesh as Mesh exposing (Mesh)
+import Scene3d.Mesh exposing (Mesh)
 import Skybox exposing (..)
 import Svg
 import Svg.Attributes as SA
@@ -55,7 +55,7 @@ import Task
 import TriangularMesh exposing (TriangularMesh, vertex)
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
-import Wrapper3D exposing (arrowStartingAt, group3D)
+import Wrapper3D
 
 
 
@@ -82,6 +82,22 @@ type AnimationState
     | Ready
     | Camera
     | Cutting
+
+
+
+-- Coordinate definitions
+
+
+type WorldCoordinates
+    = WorldCoordinates
+
+
+type LocalCoordinates
+    = LocalCoordinates
+
+
+type alias CltPlank =
+    CltPlank.CltPlank WorldCoordinates LocalCoordinates
 
 
 slider : Char -> Float -> Float -> Float -> Html Msg
@@ -210,21 +226,25 @@ codeGen cltList =
                     group
                         [ GraphicSVG.text (plankMeshCode clt)
                             |> GraphicSVG.size 2.5
+                            |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
                             |> move ( -128, 6 )
                         , GraphicSVG.text (plankRot "X" clt)
                             |> GraphicSVG.size 2.5
+                            |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
                             |> move ( -122, 3 )
                         , GraphicSVG.text (plankRot "Y" clt)
                             |> GraphicSVG.size 2.5
+                            |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
                             |> move ( -122, 0 )
                         , GraphicSVG.text (plankRot "Z" clt)
                             |> GraphicSVG.size 2.5
+                            |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
                             |> move ( -122, -3 )
@@ -551,16 +571,10 @@ init () =
         height =
             30
 
-        indexedMesh =
-            meshV width length height
-
-        stripMesh =
-            stripMeshV width length height
-
-        centerPoint =
-            calcCenter (upperMeshV width length height) (rawStripMeshV width length height)
+        cltMain =
+            createCltPlank width length height
     in
-    -- In the init functio nwe store the previously created mesh and other values since creation of a mesh is an expensive operation
+    -- In the init function we store the previously created mesh and other values since creation of a mesh is an expensive operation
     --   and changing the mesh frequently causes optimization issues.
     -- This is why we store the mesh in the state change variable instead of calculating and remaking the mesh at every instance.
     -- We also store the texture values for the created meshes to apply them later in the view function
@@ -584,34 +598,19 @@ init () =
       , isOrbiting = False
       , isOrbitBlock = False
       , sawBladeTop =
-            { x = .x <| Point3d.toRecord Length.inCentimeters centerPoint
-            , y = (+) 300 <| (*) 2 <| .y <| Point3d.toRecord Length.inCentimeters centerPoint
-            , z = .z <| Point3d.toRecord Length.inCentimeters centerPoint
+            { x = .x <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
+            , y = (+) 300 <| (*) 2 <| .y <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
+            , z = .z <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
             }
       , sawBladeLeft =
-            { x = (-) 1500 <| (*) 2 <| .x <| Point3d.toRecord Length.inCentimeters centerPoint
-            , y = .y <| Point3d.toRecord Length.inCentimeters centerPoint
-            , z = .z <| Point3d.toRecord Length.inCentimeters centerPoint
+            { x = (-) 1500 <| (*) 2 <| .x <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
+            , y = .y <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
+            , z = .z <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
             }
       , isCut = False
       , cutDir = ' '
       , numCuts = 0
-      , cltMain =
-            { width = width
-            , length = length
-            , height = height
-            , offsetX = 0
-            , offsetY = 0
-            , rotationAngleX = Angle.degrees 0
-            , rotationAngleY = Angle.degrees 0
-            , rotationAngleZ = Angle.degrees 0
-            , centerPoint = centerPoint
-            , cltFrame = Frame3d.atPoint centerPoint
-            , indexedMesh = indexedMesh
-            , stripMesh = stripMesh
-            , cltTopTexture = Material.constant Color.black
-            , cltSideTexture = Material.constant Color.black
-            }
+      , cltMain = cltMain
       , cltList = []
       , gridTexture = Material.constant Color.black
       , skyboxTexture = Material.constant Color.black
@@ -990,19 +989,19 @@ updateCltList cltList ncuts cutDir model parentCltPlank =
 
         plank1 =
             List.singleton <|
-                createPlankFromParent leftSawbladeY topSawbladeX 0 0 model.cltMain
+                createCltPlankFromParent leftSawbladeY topSawbladeX 0 0 model.cltMain
 
         plank2 =
             List.singleton <|
-                createPlankFromParent leftSawbladeY (parentCltPlank.length - topSawbladeX) topSawbladeX 0 model.cltMain
+                createCltPlankFromParent leftSawbladeY (parentCltPlank.length - topSawbladeX) topSawbladeX 0 model.cltMain
 
         plank3 =
             List.singleton <|
-                createPlankFromParent (parentCltPlank.width - leftSawbladeY) (parentCltPlank.length - topSawbladeX) topSawbladeX leftSawbladeY model.cltMain
+                createCltPlankFromParent (parentCltPlank.width - leftSawbladeY) (parentCltPlank.length - topSawbladeX) topSawbladeX leftSawbladeY model.cltMain
 
         plank4 =
             List.singleton <|
-                createPlankFromParent (parentCltPlank.width - leftSawbladeY) topSawbladeX 0 leftSawbladeY model.cltMain
+                createCltPlankFromParent (parentCltPlank.width - leftSawbladeY) topSawbladeX 0 leftSawbladeY model.cltMain
 
         planks =
             List.concat [ plank1, plank2, plank3, plank4 ]
@@ -1506,7 +1505,7 @@ view model =
             in
             Wrapper3D.group3D <|
                 if model.isCut && model.cutDir == 'X' then
-                    [ arrowStartingAt cutArrowStartX
+                    [ Wrapper3D.arrowStartingAt cutArrowStartX
                         Direction3d.negativeY
                         { radius = Length.centimeters 8
                         , length = lengthX
@@ -1515,7 +1514,7 @@ view model =
                     ]
 
                 else if model.isCut && model.cutDir == 'Y' then
-                    [ arrowStartingAt cutArrowStartY
+                    [ Wrapper3D.arrowStartingAt cutArrowStartY
                         Direction3d.positiveX
                         { radius = Length.centimeters 8
                         , length = lengthY
@@ -1524,8 +1523,8 @@ view model =
                     ]
 
                 else if model.isCut then
-                    [ arrowStartingAt cutArrowStartY Direction3d.positiveX { radius = Length.centimeters 8, length = lengthY } (Material.nonmetal { baseColor = Color.black, roughness = 0.1 })
-                    , arrowStartingAt cutArrowStartX Direction3d.negativeY { radius = Length.centimeters 8, length = lengthX } (Material.nonmetal { baseColor = Color.black, roughness = 0.1 })
+                    [ Wrapper3D.arrowStartingAt cutArrowStartY Direction3d.positiveX { radius = Length.centimeters 8, length = lengthY } (Material.nonmetal { baseColor = Color.black, roughness = 0.1 })
+                    , Wrapper3D.arrowStartingAt cutArrowStartX Direction3d.negativeY { radius = Length.centimeters 8, length = lengthX } (Material.nonmetal { baseColor = Color.black, roughness = 0.1 })
                     ]
 
                 else
