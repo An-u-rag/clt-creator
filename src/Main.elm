@@ -177,9 +177,7 @@ myShapes model =
     , textBox 30 5 False False [ "Rotate along Y axis" ] |> move ( 100, 30 ) |> notifyTap (RotateObject model.selectedId 'Y')
     , textBox 30 5 False False [ "Rotate along Z axis" ] |> move ( 100, 24 ) |> notifyTap (RotateObject model.selectedId 'Z')
     , textBox 30 5 False False [ "Cutter" ] |> move ( 100, 12 ) |> notifyTap Set2D
-    , textBox 10 5 False False [ "Cut" ] |> move ( 90, 0 ) |> notifyTap (Cut 2 ' ')
-    , textBox 10 5 False False [ "CutX" ] |> move ( 100, 0 ) |> notifyTap (Cut 1 'X')
-    , textBox 10 5 False False [ "CutY" ] |> move ( 110, 0 ) |> notifyTap (Cut 1 'Y')
+    , cuttingBox model
     , textBox 30 5 False False [ "Focus" ] |> move ( 100, 6 ) |> notifyTap (FocusChange model.cltMain.centerPoint)
     , textBox 30 5 False False [ "Reset" ] |> move ( 100, -6 ) |> notifyTap Reset
 
@@ -194,6 +192,18 @@ myShapes model =
       else
         textBox 0 0 True False [ "" ] |> move ( 0, 0 )
     ]
+
+
+cuttingBox model =
+    if model.isCut then
+        textBox 30 5 False False [ "Cut Pressed" ] |> move ( 100, 0 )
+
+    else
+        group
+            [ textBox 10 5 False False [ "Cut" ] |> move ( 90, 0 ) |> notifyTap (Cut 2 ' ')
+            , textBox 10 5 False False [ "CutX" ] |> move ( 100, 0 ) |> notifyTap (Cut 1 'X')
+            , textBox 10 5 False False [ "CutY" ] |> move ( 110, 0 ) |> notifyTap (Cut 1 'Y')
+            ]
 
 
 yourCode model =
