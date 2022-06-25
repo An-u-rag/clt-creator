@@ -1,11 +1,9 @@
 {
     "name": "clt-creator",
     "version": "1.0.0",
-    "description": "CltCreator is an interactive CAD tool for sustainable building. THis will be used by students to visualize programming and learn geometry.",
-    "main": "index.js",
+    "description": "CltCreator is an interactive CAD tool for sustainable building. This will be used by students to visualize programming and learn geometry.",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "mkdir -p dist && elm make src/Main.elm --optimize --output=dist/elm.js && cp index.html dist"
+        "build": "elm make src/Main.elm --output=dist/elm.js"
     },
     "repository": {
         "type": "git",
@@ -30,5 +28,8 @@
     "homepage": "https://github.com/An-u-rag/clt-creator#readme",
     "devDependencies": {
         "elm-live": "^4.0.2"
+    },
+    "dependencies": {
+        "array-unique": "^0.3.2"
     }
 }

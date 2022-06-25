@@ -1,4 +1,4 @@
 elm-stuff/
 node_modules/
 src/TypingApp.elm
-package-lock.json
+elm.js
