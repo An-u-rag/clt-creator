@@ -1,0 +1,33 @@
+{
+  "name": "clt-creator",
+  "version": "1.0.0",
+  "description": "CltCreator is an interactive CAD tool for sustainable building. THis will be used by students to visualize programming and learn geometry.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/An-u-rag/clt-creator.git"
+  },
+  "keywords": [
+    "graphical",
+    "programming",
+    "functional",
+    "programming",
+    "computer",
+    "aided",
+    "design",
+    "sustainable",
+    "construction"
+  ],
+  "author": "Anurag Parcha, Sanjana Mishra",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/An-u-rag/clt-creator/issues"
+  },
+  "homepage": "https://github.com/An-u-rag/clt-creator#readme",
+  "devDependencies": {
+    "elm-live": "^4.0.2"
+  }
+}
