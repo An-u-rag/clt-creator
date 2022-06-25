@@ -7,14 +7,6 @@ module Main exposing (main)
        2. Transform-Translate
    - Runs with elm-3d-scene
 
-   Todo:
-       1. Generate a 3D environment with a 3D clt plank. (Done)
-       2. Add a background. (Done)
-       3. Add orbiting camera on mouse click and drag. (Done)
-       4. Overlay - Look into 2D widgets for controls(sliders) and information.
-       5. Add dynamic resizing of the scene. (Done)
-       6. XY plane Grid (done)
-       7. Make CLT plank Clickable -> Highlight and Focus with onClick.
 -}
 -- IMPORTS
 
@@ -241,7 +233,7 @@ codeGen cltList =
                             |> customFont "monospace"
                             |> filled darkBlue
                             |> move ( -129, 27 )
-                        , GraphicSVG.text (reqCode1)
+                        , GraphicSVG.text reqCode1
                             |> GraphicSVG.size 2.5
                             |> selectable
                             |> customFont "monospace"
@@ -276,7 +268,7 @@ codeGen cltList =
                 cltList
 
 
-plankMeshCode clt = 
+plankMeshCode clt =
     "createCltPlank "
         ++ Debug.toString clt.width
         ++ " "
@@ -284,17 +276,20 @@ plankMeshCode clt =
         ++ " "
         ++ Debug.toString clt.height
 
-reqCode1 = 
-        "|> renderCltPlank"         
-        
-reqCode2 clt = 
-        "|> fromEntity ("
+
+reqCode1 =
+    "|> renderCltPlank"
+
+
+reqCode2 clt =
+    "|> fromEntity ("
         ++ Debug.toString clt.width
         ++ ", "
         ++ Debug.toString clt.length
         ++ ", "
         ++ Debug.toString clt.height
         ++ ")"
+
 
 plankRot dir clt =
     case dir of
@@ -321,13 +316,12 @@ plankRot dir clt =
                 ""
 
             else
-                 "|> rotateZ3D (degrees "
+                "|> rotateZ3D (degrees "
                     ++ Debug.toString (Angle.inDegrees clt.rotationAngleZ)
                     ++ ")"
 
         _ ->
             ""
-
 
 
 
