@@ -60,7 +60,7 @@ collageWidth =
 
 
 collageHeight =
-    128
+    140
 
 
 type ProjectionType
@@ -146,6 +146,13 @@ cutterUI model =
 myShapes model =
     [ textBox2 35 60 False False [] |> move ( 100, 20 ) |> makeTransparent 0.8 --main, biggest box
     , pipelines |> move ( 130, -15 )
+
+    -- Tool Tip for Bird's eye view
+    , if model.projection == Orthographic then
+        textBox 35 5 False False [ "Bird's Eye View" ] |> move ( 97, 62 ) |> notifyTap ViewToggle
+
+      else
+        textBox 0 0 True False [ "" ] |> move ( 0, 0 )
     , textBox 20
         5
         False
