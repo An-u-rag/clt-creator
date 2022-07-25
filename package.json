@@ -30,6 +30,7 @@
         "elm-live": "^4.0.2"
     },
     "dependencies": {
-        "array-unique": "^0.3.2"
+        "array-unique": "^0.3.2",
+        "elm": "^0.19.1-5"
     }
 }
