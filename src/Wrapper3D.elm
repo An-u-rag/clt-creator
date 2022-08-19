@@ -25,6 +25,7 @@ module Wrapper3D exposing
     , cylinderStartingAt
     , cylinderU
     , ellipsoid
+    , fromEntity
     , generateDynamicMesh
     , generateEllipsoid
     , generatePolyCone
@@ -253,6 +254,26 @@ constantColourTexture col =
 
 
 --- Shapes
+
+
+{-| Create an Object from an existing Scene3d Entity. Assumes that you are handling mesh caching.
+-}
+fromEntity : Dimension -> Entity coordinates -> Object coordinates
+fromEntity ( length, width, height ) entity =
+    Object
+        { shape = entity
+        , boundingBox =
+            Box
+                (BoundingBox3d.from
+                    (Point3d.centimeters (length / 2) (width / 2) (height / 2))
+                    (Point3d.centimeters (-length / 2) (-width / 2) (-height / 2))
+                )
+        , name = "customEntity"
+        , meshHash = ""
+        , customMesh = Primitive
+        , approxShape = EmptyShape
+        , rotation = { pitch = Quantity.zero, roll = Quantity.zero, yaw = Quantity.zero }
+        }
 
 
 {-| Create both a Light and an Entity (a bright glowing sphere) representing a
