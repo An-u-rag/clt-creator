@@ -122,12 +122,12 @@ cutterUI model =
                 , textBox 8 8 (model.selectedId == 3) False [ "IV" ] |> move ( -55, 10 ) |> notifyTap (SelectPlank 3)
                 ]
 
-             else if model.numCuts == 1 && model.cutDir == 'X' then
+             else if model.numCuts == 1 && model.cutDir == "X" then
                 [ textBox 8 8 (model.selectedId == 1) False [ "I" ] |> move ( -55, 0 ) |> notifyTap (SelectPlank 1)
                 , textBox 8 8 (model.selectedId == 0) False [ "II" ] |> move ( 55, 0 ) |> notifyTap (SelectPlank 0)
                 ]
 
-             else if model.numCuts == 1 && model.cutDir == 'Y' then
+             else if model.numCuts == 1 && model.cutDir == "Y" then
                 [ textBox 8 8 (model.selectedId == 0) False [ "I" ] |> move ( 0, -15 ) |> notifyTap (SelectPlank 0)
                 , textBox 8 8 (model.selectedId == 1) False [ "II" ] |> move ( 0, 15 ) |> notifyTap (SelectPlank 1)
                 ]
@@ -184,7 +184,7 @@ myShapes model =
     , animationButton model |> move ( 112.5, 56 ) |> notifyTap AnimationToggle
     , GraphicSVG.text "CLT" |> fixedwidth |> bold |> GraphicSVG.size 9 |> filled (GraphicSVG.hsl 10 1.0 (abs (sin (1 * model.time)) + 0.2)) |> move ( -130, 55 )
     , GraphicSVG.text "Creator" |> fixedwidth |> bold |> GraphicSVG.size 4 |> filled (GraphicSVG.hsl 10 1.0 (abs (sin (1 * model.time)) + 0.2)) |> move ( -130, 50 )
-    , GraphicSVG.text "Your Code" |> fixedwidth |> bold |> GraphicSVG.size 4 |> filled white |> move ( -130, 32 )
+    , GraphicSVG.text "Your Code" |> fixedwidth |> bold |> GraphicSVG.size 4 |> filled white |> move ( -130, 34 )
     , yourCode model
     , if model.elevation == Angle.degrees 90 && model.focusAt /= Point3d.meters 0 0 0 then
         cutterUI model
@@ -200,35 +200,77 @@ cuttingBox model =
 
     else
         group
-            [ textBox 10 5 False False [ "Cut" ] |> move ( 90, 0 ) |> notifyTap (Cut 2 ' ')
-            , textBox 10 5 False False [ "CutX" ] |> move ( 100, 0 ) |> notifyTap (Cut 1 'X')
-            , textBox 10 5 False False [ "CutY" ] |> move ( 110, 0 ) |> notifyTap (Cut 1 'Y')
+            [ textBox 10 5 False False [ "Cut" ] |> move ( 90, 0 ) |> notifyTap (Cut 2 "XY")
+            , textBox 10 5 False False [ "CutX" ] |> move ( 100, 0 ) |> notifyTap (Cut 1 "X")
+            , textBox 10 5 False False [ "CutY" ] |> move ( 110, 0 ) |> notifyTap (Cut 1 "Y")
             ]
 
 
 yourCode model =
     group
-        [ rect 50 80
+        [ rect 55 83
             |> filled white
             |> makeTransparent 0.8
             |> addOutline (solid 0.3) darkBlue
-            |> move ( -105, -10 )
+            |> move ( -105, -8 )
         , if model.isCut then
-            codeGen model.cltList
+            group
+                [ cutGen model
+                , GraphicSVG.text "----------------------------------------"
+                    |> GraphicSVG.size 2.5
+                    |> customFont "monospace"
+                    |> filled darkBlue
+                    |> move ( -132, 20 )
+                , codeGen model.cltList
+                ]
 
           else
-            codeGen [ model.cltMain ]
+            group
+                [ GraphicSVG.text "mainCltPlank = "
+                    |> GraphicSVG.size 2.5
+                    |> selectable
+                    |> customFont "monospace"
+                    |> filled darkBlue
+                    |> move ( -132, 29 )
+                , codeGen [ model.cltMain ]
+                ]
         ]
 
 
-codeGen : List CltPlank -> Shape userMsg
+cutGen model =
+    group
+        [ GraphicSVG.text "cutPlank"
+            |> GraphicSVG.size 3
+            |> selectable
+            |> customFont "monospace"
+            |> filled darkBlue
+            |> move ( -132, 29 )
+        , GraphicSVG.text
+            ("mainCltPlank"
+                ++ " "
+                ++ Debug.toString model.sawBladeLeft.y
+                ++ " "
+                ++ Debug.toString model.sawBladeTop.x
+                ++ " "
+                ++ Debug.toString model.numCuts
+                ++ " "
+                ++ Debug.toString model.cutDir
+            )
+            |> GraphicSVG.size 2.5
+            |> selectable
+            |> customFont "monospace"
+            |> filled darkBlue
+            |> move ( -129, 25.5 )
+        ]
+
+
 codeGen cltList =
     group <|
         (if List.length cltList == 1 then
             List.map2 (\y clt -> clt |> move ( 0, -y )) [ 0 ]
 
          else
-            List.map2 (\y clt -> clt |> move ( 0, -y )) [ 0, 20, 40, 60 ]
+            List.map2 (\y clt -> clt |> move ( 0, -y )) [ 5, 20, 35, 50 ]
         )
         <|
             List.map
@@ -239,19 +281,7 @@ codeGen cltList =
                             |> selectable
                             |> customFont "monospace"
                             |> filled darkBlue
-                            |> move ( -129, 27 )
-                        , GraphicSVG.text reqCode1
-                            |> GraphicSVG.size 2.5
-                            |> selectable
-                            |> customFont "monospace"
-                            |> filled darkBlue
-                            |> move ( -125, 24 )
-                        , GraphicSVG.text (reqCode2 clt)
-                            |> GraphicSVG.size 2.5
-                            |> selectable
-                            |> customFont "monospace"
-                            |> filled darkBlue
-                            |> move ( -125, 21 )
+                            |> move ( -129, 21 )
                         , GraphicSVG.text (plankRot "X" clt)
                             |> GraphicSVG.size 2.5
                             |> selectable
@@ -282,20 +312,6 @@ plankMeshCode clt =
         ++ Debug.toString clt.length
         ++ " "
         ++ Debug.toString clt.height
-
-
-reqCode1 =
-    "|> renderCltPlank"
-
-
-reqCode2 clt =
-    "|> fromEntity ("
-        ++ Debug.toString clt.width
-        ++ ", "
-        ++ Debug.toString clt.length
-        ++ ", "
-        ++ Debug.toString clt.height
-        ++ ")"
 
 
 plankRot dir clt =
@@ -582,7 +598,7 @@ type alias Model =
     , sawBladeTop : SawBladeData
     , sawBladeLeft : SawBladeData
     , isCut : Bool
-    , cutDir : Char
+    , cutDir : String
     , numCuts : Int
     , cltMain : CltPlank
     , cltList : List CltPlank
@@ -611,7 +627,7 @@ init () =
             30
 
         cltMain =
-            createCltPlank width length height
+            createCltPlankRaw width length height
     in
     -- In the init function we store the previously created mesh and other values since creation of a mesh is an expensive operation
     --   and changing the mesh frequently causes optimization issues.
@@ -647,7 +663,7 @@ init () =
             , z = .z <| Point3d.toRecord Length.inCentimeters <| getCenterPoint cltMain
             }
       , isCut = False
-      , cutDir = ' '
+      , cutDir = "XY"
       , numCuts = 0
       , cltMain = cltMain
       , cltList = []
@@ -705,7 +721,7 @@ type Msg
     | FocusChange (Point3d Meters WorldCoordinates)
     | RotateObject Int Char
     | AnimationToggle
-    | Cut Int Char
+    | Cut Int String
     | Set2D
     | SelectPlank Int
     | CheckZoom
@@ -889,7 +905,7 @@ update msg model =
                     , animationState = Cutting
                     , numCuts = numCuts
                     , cutDir = cutDir
-                    , cltList = updateCltList model.cltList numCuts cutDir model model.cltMain
+                    , cltList = cutPlank model.cltMain model.sawBladeTop.x model.sawBladeLeft.y numCuts cutDir
                     , time = 0
                 }
             , Cmd.none
@@ -956,7 +972,7 @@ update msg model =
             ( { model
                 | isCut = False
                 , numCuts = 0
-                , cutDir = ' '
+                , cutDir = "XY"
                 , cltMain = resetPlank model.cltMain
                 , rotationAngle = Quantity.zero
                 , focusAt = Point3d.centimeters 0 0 0
@@ -1001,60 +1017,6 @@ updatePos sb pos axis =
 
     else
         { sb | y = pos }
-
-
-updateCltList : List CltPlank -> Int -> Char -> Model -> CltPlank -> List CltPlank
-updateCltList cltList ncuts cutDir model parentCltPlank =
-    let
-        leftSawbladeY =
-            if ncuts == 2 then
-                model.sawBladeLeft.y
-
-            else if cutDir == 'X' then
-                0
-
-            else
-                model.sawBladeLeft.y
-
-        topSawbladeX =
-            if ncuts == 2 then
-                model.sawBladeTop.x
-
-            else if cutDir == 'Y' then
-                0
-
-            else
-                model.sawBladeTop.x
-
-        plank1 =
-            List.singleton <|
-                createCltPlankFromParent leftSawbladeY topSawbladeX 0 0 model.cltMain
-
-        plank2 =
-            List.singleton <|
-                createCltPlankFromParent leftSawbladeY (parentCltPlank.length - topSawbladeX) topSawbladeX 0 model.cltMain
-
-        plank3 =
-            List.singleton <|
-                createCltPlankFromParent (parentCltPlank.width - leftSawbladeY) (parentCltPlank.length - topSawbladeX) topSawbladeX leftSawbladeY model.cltMain
-
-        plank4 =
-            List.singleton <|
-                createCltPlankFromParent (parentCltPlank.width - leftSawbladeY) topSawbladeX 0 leftSawbladeY model.cltMain
-
-        planks =
-            List.concat [ plank1, plank2, plank3, plank4 ]
-    in
-    if ncuts == 2 then
-        List.append cltList <| planks
-
-    else if ncuts == 1 then
-        List.filter (\c -> c.width /= 0) planks
-            |> List.filter (\c -> c.length /= 0)
-            |> List.append cltList
-
-    else
-        cltList
 
 
 
@@ -1543,7 +1505,7 @@ view model =
                         )
             in
             Wrapper3D.group3D <|
-                if model.isCut && model.cutDir == 'X' then
+                if model.isCut && model.cutDir == "X" then
                     [ Wrapper3D.arrowStartingAt cutArrowStartX
                         Direction3d.negativeY
                         { radius = Length.centimeters 8
@@ -1552,7 +1514,7 @@ view model =
                         (Material.nonmetal { baseColor = Color.black, roughness = 0.1 })
                     ]
 
-                else if model.isCut && model.cutDir == 'Y' then
+                else if model.isCut && model.cutDir == "Y" then
                     [ Wrapper3D.arrowStartingAt cutArrowStartY
                         Direction3d.positiveX
                         { radius = Length.centimeters 8
@@ -1581,7 +1543,7 @@ view model =
                     |> Wrapper3D.move3D
                         ( model.sawBladeTop.x
                         , model.sawBladeTop.y
-                            - (if model.cutDir == 'Y' then
+                            - (if model.cutDir == "Y" then
                                 0
 
                                else
@@ -1596,7 +1558,7 @@ view model =
                     -- |> Wrapper3D.move3D ( -70, 100 * Quantity.unwrap yMidpoint, 0 )
                     |> Wrapper3D.move3D
                         ( model.sawBladeLeft.x
-                            + (if model.cutDir == 'X' then
+                            + (if model.cutDir == "X" then
                                 0
 
                                else
@@ -1646,7 +1608,7 @@ view model =
                 }
             , createCollage collageWidth collageHeight <| myShapes model
 
-            --, p [ style "margin" "0px", style "padding" "0px" ] [ Html.text <| Debug.toString updatedPositionX ]
+            --, p [ style "margin" "0px", style "padding" "0px" ] [ Html.text <| Debug.toString model.cltList ]
             ]
         ]
     }

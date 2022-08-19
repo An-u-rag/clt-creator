@@ -1,4 +1,4 @@
-module CltPlank exposing (CltPlank, cltSideTextureURL, cltTopTextureURL, createCltPlank, createCltPlankFromParent, defaultPlank, getCenterPoint, renderCltPlank, resetPlank, rotateClt, updateCltTexture)
+module CltPlank exposing (CltPlank, cltSideTextureURL, cltTopTextureURL, createCltPlank, createCltPlankRaw, cutAndCreateCltPlank, cutPlank, defaultPlank, getCenterPoint, renderCltPlank, resetPlank, rotateClt, updateCltTexture)
 
 import Angle exposing (Angle)
 import Array exposing (Array)
@@ -27,6 +27,7 @@ import TriangularMesh exposing (TriangularMesh, vertex)
 import Vector3d exposing (..)
 import Viewpoint3d exposing (Viewpoint3d)
 import WebGL.Texture exposing (Texture)
+import Wrapper3D exposing (Object, fromEntity)
 
 
 type alias Frame worldCoordinates localCoordinates =
@@ -103,8 +104,8 @@ defaultPlank =
     }
 
 
-createCltPlank : Float -> Float -> Float -> CltPlank worldCoordinates localCoordinates
-createCltPlank width length height =
+createCltPlankRaw : Float -> Float -> Float -> CltPlank worldCoordinates localCoordinates
+createCltPlankRaw width length height =
     let
         mainIndexedMesh =
             cltPlankMeshV width length height
@@ -132,13 +133,104 @@ createCltPlank width length height =
     }
 
 
+createCltPlank : Float -> Float -> Float -> Object worldCoordinates
+createCltPlank width length height =
+    let
+        mainIndexedMesh =
+            cltPlankMeshV width length height
+
+        mainStripMesh =
+            cltPlankStripMeshV width length height
+
+        centerPoint =
+            calculateCltPlankCenter (cltPlankXYUpperMeshV width length height) (cltPlankRawStripMeshV width length height)
+    in
+    { width = width
+    , length = length
+    , height = height
+    , offsetX = 0
+    , offsetY = 0
+    , rotationAngleX = Angle.degrees 0
+    , rotationAngleY = Angle.degrees 0
+    , rotationAngleZ = Angle.degrees 0
+    , centerPoint = centerPoint
+    , cltFrame = Frame3d.atPoint centerPoint
+    , indexedMesh = mainIndexedMesh
+    , stripMesh = mainStripMesh
+    , cltTopTexture = Material.constant Color.black
+    , cltSideTexture = Material.constant Color.black
+    }
+        |> renderCltPlank
+        |> fromEntity ( width, length, height )
+
+
 getCenterPoint : CltPlank worldCoordinates localCoordinates -> Point3d Meters worldCoordinates
 getCenterPoint clt =
     clt.centerPoint
 
 
-createCltPlankFromParent : Float -> Float -> Float -> Float -> CltPlank worldCoordinates localCoordinates -> CltPlank worldCoordinates localCoordinates
-createCltPlankFromParent width length offsetX offsetY parentCltPlank =
+
+-- This function will take the ParentPlank, X and Y values, number of cuts, cut direction and offsets as arguments.
+-- This will call the cutAndCreateCltPlank function.
+-- Returns a List of CltPlanks as a result which contaisn the cut planks.
+
+
+cutPlank : CltPlank worldCoordinates localCoordinates -> Float -> Float -> Int -> String -> List (CltPlank worldCoordinates localCoordinates)
+cutPlank parentPlank xPos yPos ncuts cutDir =
+    let
+        cltList =
+            []
+
+        leftSawbladeY =
+            if ncuts == 2 then
+                yPos
+
+            else if cutDir == "X" then
+                0
+
+            else
+                yPos
+
+        topSawbladeX =
+            if ncuts == 2 then
+                xPos
+
+            else if cutDir == "Y" then
+                0
+
+            else
+                xPos
+
+        plank1 =
+            List.singleton <|
+                cutAndCreateCltPlank leftSawbladeY topSawbladeX 0 0 parentPlank
+
+        plank2 =
+            List.singleton <|
+                cutAndCreateCltPlank leftSawbladeY (parentPlank.length - topSawbladeX) topSawbladeX 0 parentPlank
+
+        plank3 =
+            List.singleton <|
+                cutAndCreateCltPlank (parentPlank.width - leftSawbladeY) (parentPlank.length - topSawbladeX) topSawbladeX leftSawbladeY parentPlank
+
+        plank4 =
+            List.singleton <|
+                cutAndCreateCltPlank (parentPlank.width - leftSawbladeY) topSawbladeX 0 leftSawbladeY parentPlank
+    in
+    if ncuts == 2 then
+        List.append cltList <| List.concat [ plank1, plank2, plank3, plank4 ]
+
+    else if ncuts == 1 then
+        List.filter (\c -> c.width /= 0) (List.concat [ plank1, plank2, plank3, plank4 ])
+            |> List.filter (\c -> c.length /= 0)
+            |> List.append cltList
+
+    else
+        cltList
+
+
+cutAndCreateCltPlank : Float -> Float -> Float -> Float -> CltPlank worldCoordinates localCoordinates -> CltPlank worldCoordinates localCoordinates
+cutAndCreateCltPlank width length offsetX offsetY parentCltPlank =
     let
         height =
             parentCltPlank.height
