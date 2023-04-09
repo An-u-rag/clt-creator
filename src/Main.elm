@@ -1223,7 +1223,7 @@ convertCoords gModel ( x, y ) =
 
 
 -- This is the main view module responsible for displaying the elements on the HTML browser with the help of JavaScript.
--- Here it is slightly modified to output a Browser.Document (which includes Html) type instead of Html type because out elm app type is a Browser.document.
+-- Here it is slightly modified to output a Browser.Document (which includes Html) type instead of Html type because our elm app type is a Browser.document.
 
 
 view : Model -> Browser.Document Msg
