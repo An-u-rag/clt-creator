@@ -21,12 +21,12 @@ _The article is yet to be published..._
 
 3. Run the following command(s) for running the project directly from the project root folder:
 
-```
-cd clt-creator
-elm reactor
-```
+   ```
+   cd clt-creator
+   elm reactor
+   ```
 
-Open localhost:8000 on your browser window and navigate to src/Main.elm
+   Open localhost:8000 on your browser window and navigate to src/Main.elm
 
 <h3>OR</h3>
 
