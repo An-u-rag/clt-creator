@@ -28,16 +28,16 @@ _The article is yet to be published..._
 
    Open localhost:8000 on your browser window and navigate to src/Main.elm
 
-<h3>OR</h3>
+   <h3>OR</h3>
 
-3. Run the following command(s) for building an index.html or an optimized .js file for the elm project.
+   Run the following command(s) for building an index.html or an optimized .js file for the elm project.
 
-```
-cd clt-creator
+   ```
+   cd clt-creator
 
-# Build an index.html file of the Mail.elm file
-elm make src/Main.elm
+   # Build an index.html file of the Mail.elm file
+   elm make src/Main.elm
 
-# OR Build an optimized JS file to embed in your own HTML document
-elm make src/Main.elm --optimize --output=cltcreator.js
-```
+   # OR Build an optimized JS file to embed in your own HTML document
+   elm make src/Main.elm --optimize --output=cltcreator.js
+   ```
