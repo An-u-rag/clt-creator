@@ -1,7 +1,7 @@
 <h1>CLT Creator</h1>
 
 <h2> Check Out This Project at: [CLTCreator](https://cltcreator.netlify.app) </h2>
-
+[CLTCreator](https://cltcreator.netlify.app)
 ![Clt Creator Landing Screen!](./public/cltcreatorlanding.png "CLT Creator Landing Screen")
 
 **_CLT Creator tool is discussed in the below article_**
