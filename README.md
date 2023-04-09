@@ -17,7 +17,7 @@ _The article is yet to be published..._
 1. Clone this repository's main branch using:
 
    ```
-   git clone https://github.com/An-u-rag/clt-creator.
+   git clone https://github.com/An-u-rag/clt-creator
    ```
 
 2. Install Elm by navigating to the homepage of [Elm-lang](https://guide.elm-lang.org/install/elm.html)
